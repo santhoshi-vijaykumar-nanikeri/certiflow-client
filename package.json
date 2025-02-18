@@ -1,0 +1,54 @@
+{
+  "name": "certiflow",
+  "version": "1.0.0",
+  "description": "CertiFlow",
+  "main": "index.js",
+  "scripts": {
+    "start": "webpack serve --open",
+    "build": "webpack",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/santhoshi-vijaykumar-nanikeri/certiflow-client.git"
+  },
+  "author": "Santhoshi Vijaykumar Nanikeri",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/santhoshi-vijaykumar-nanikeri/certiflow-client/issues"
+  },
+  "homepage": "https://github.com/santhoshi-vijaykumar-nanikeri/certiflow-client#readme",
+  "devDependencies": {
+    "@babel/core": "^7.26.9",
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-react": "^7.26.3",
+    "@babel/preset-typescript": "^7.26.0",
+    "@eslint/js": "^9.20.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@typescript-eslint/eslint-plugin": "^8.24.1",
+    "@typescript-eslint/parser": "^8.24.1",
+    "babel-loader": "^9.2.1",
+    "eslint": "^9.20.1",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.3",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.15.0",
+    "html-webpack-plugin": "^5.6.3",
+    "prettier": "^3.5.1",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.1",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.0"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^6.4.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
