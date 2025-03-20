@@ -16,7 +16,7 @@ import SubcategoryTypePage from "./pages/private/Library/SubcategoryTypePage";
 import { SnackbarProvider } from "./Components/SnackbarContext";
 const queryClient = new QueryClient();
 
-// hi
+// hi again
 
 const App = () => {
   return (
