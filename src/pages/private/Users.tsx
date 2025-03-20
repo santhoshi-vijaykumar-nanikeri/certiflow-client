@@ -1,0 +1,586 @@
+import {
+  useQuery,
+  QueryClient,
+  useQueryClient,
+  useMutation,
+} from '@tanstack/react-query';
+import { useForm, Controller } from 'react-hook-form';
+import React, { useMemo, useState } from 'react';
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+} from '@tanstack/react-table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Box,
+  IconButton,
+  Typography,
+  Modal,
+  Button,
+  TextField,
+  FormControl,
+  MenuItem,
+  Select,
+  InputLabel,
+} from '@mui/material';
+import axios from 'axios';
+import { Delete, Edit } from '@mui/icons-material';
+import BlockIcon from '@mui/icons-material/Block';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import { useSnackbar } from 'src/Components/SnackbarContext';
+
+// Define Type for User Payload
+interface UserPayload {
+  id?: number;
+  mobileNo: string;
+  name: string;
+  userCategoryId: string;
+  userId: number;
+}
+// Fetch Users Function
+const fetchUsers = async () => {
+  const response = await axios.get('http://localhost:3000/users', {
+    headers: {
+      Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
+    },
+  });
+  return response.data.data; // Extracting 'data' array
+};
+const Users = () => {
+  const { data, error, isLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: fetchUsers,
+  });
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useSnackbar();
+
+  // State Management for Modals and Selection
+  const [openAddUserModal, setOpenAddUserModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserPayload | null>(null);
+  const [openEditUserModal, setOpenEditUserModal] = useState(false);
+  const [openDeleteModal, setOpenDeleteModal] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Retrieve User ID from sessionStorage
+  const userId = useMemo(() => {
+    return sessionStorage.getItem('userId')
+      ? Number(sessionStorage.getItem('userId'))
+      : null;
+  }, []);
+
+  // React Hook Form Setup
+  const { control, handleSubmit, reset } = useForm({
+    defaultValues: {
+      name: '',
+      mobileNo: '',
+      userCategoryId: 1,
+      password: 'password', // Pre-filled but non-editable
+    },
+  });
+
+  // Mutation for Adding User
+  const addUserMutation = useMutation<UserPayload, Error, UserPayload>({
+    mutationFn: async (newUser: UserPayload) => {
+      const response = await axios.post(
+        'http://localhost:3000/users',
+        newUser,
+        {
+          headers: {
+            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      showSnackbar('User added successfully', 'success');
+      handleCloseAddUserModal(); // Close modal on success
+    },
+    onError: () => {
+      showSnackbar('Failed to add user', 'error');
+    },
+  });
+
+  // Edit User Mutation
+  const editUserMutation = useMutation({
+    mutationFn: async (updatedUser: UserPayload) => {
+      try {
+        const response = await axios.put(
+          `http://localhost:3000/users`,
+          updatedUser,
+          {
+            headers: {
+              Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
+              'Content-Type': 'application/json',
+            },
+            validateStatus: (status) => status < 400, // Ensures 4xx/5xx throw errors
+          },
+        );
+        return response.data;
+      } catch (error: any) {
+        // Ensure we correctly throw errors so they are caught in onError
+        if (error.response) {
+          throw error.response; // This will pass the entire response object
+        }
+        throw new Error('Something went wrong!');
+      }
+    },
+    onSuccess: (data) => {
+      if (data?.statusCode === 409) {
+        // Prevent showing success if conflict error occurs
+        showSnackbar('User exists!', 'error');
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      showSnackbar('User updated successfully', 'success');
+      setOpenEditUserModal(false);
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      console.error('Mutation Error:', error);
+
+      const errorMessage =
+        error?.data?.message || error?.message || 'Something went wrong!';
+      const statusCode = error?.status || error?.statusCode;
+
+      if (statusCode === 409) {
+        showSnackbar('User exists!', 'error');
+      } else {
+        showSnackbar(errorMessage, 'error');
+      }
+    },
+  });
+
+  // Mutation for Deleting User
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await axios.delete(`http://localhost:3000/users/${id}`, {
+        headers: {
+          Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
+        },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      showSnackbar('User deleted successfully', 'success');
+      setOpenDeleteModal(false);
+    },
+  });
+  // Handle Add User Form Submission
+  const onSubmit = (data: any) => {
+    if (!userId) {
+      console.error('User ID is missing from sessionStorage!');
+      return; // Prevent API call if userId is missing
+    }
+
+    const payload: UserPayload = {
+      mobileNo: data.mobileNo,
+      name: data.name,
+      userCategoryId: data.userCategoryId,
+      userId, // Now properly retrieved
+    };
+
+    addUserMutation.mutate(payload);
+  };
+  // Open & Close Handlers
+  const handleOpenAddUserModal = () => {
+    // @ts-ignore
+    reset({ name: '', mobileNo: '', userCategoryId: '' }); // Reset form fields before opening the modal
+    setOpenAddUserModal(true);
+  };
+
+  const handleCloseAddUserModal = () => {
+    setOpenAddUserModal(false);
+    // @ts-ignore
+    reset({ name: '', mobileNo: '', userCategoryId: '' }); // Ensure fields are cleared when closing
+  };
+
+  // Open Edit User Modal
+  const handleOpenEditModal = (user: UserPayload) => {
+    setSelectedUser(user);
+    reset({
+      // Reset form fields with selected user's existing data
+      name: user.name,
+      mobileNo: user.mobileNo,
+      userCategoryId: Number(user.userCategoryId),
+    });
+    setOpenEditUserModal(true);
+  };
+
+  // Close Edit Modal
+  const handleCloseEditModal = () => {
+    setSelectedUser(null);
+    setOpenEditUserModal(false);
+  };
+
+  // Handle Edit Submission
+  const handleEditSubmit = (data: any) => {
+    if (!selectedUser) return;
+    if (!userId) {
+      console.error('User ID is missing from sessionStorage!');
+      return; // Prevent API call if userId is missing
+    }
+
+    const updatedUser = {
+      id: selectedUser.id,
+      mobileNo: data.mobileNo,
+      name: data.name,
+      userCategoryId: data.userCategoryId,
+      userId,
+    };
+
+    editUserMutation.mutate(updatedUser);
+  };
+
+  // Handlers for deletion
+  const handleOpenDeleteModal = (id: string) => {
+    setDeleteId(id);
+    setOpenDeleteModal(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setDeleteId(null);
+    setOpenDeleteModal(false);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteId) deleteMutation.mutate(Number(deleteId));
+  };
+
+  // Define columns for React Table
+  const columns = [
+    {
+      header: 'S.No.',
+      cell: (info: { row: { index: number } }) => info.row.index + 1, // Display serial number starting from 1
+    },
+    { accessorKey: 'name', header: 'User' },
+    { accessorKey: 'userCategory', header: 'User Category' },
+    { accessorKey: 'mobileNo', header: 'Mobile No' },
+
+    { accessorKey: 'createdBy', header: 'Created By' },
+    {
+      accessorKey: 'createdOn',
+      header: 'Created On',
+      cell: (info: { getValue: () => string | number | Date }) =>
+        new Date(info.getValue()).toLocaleDateString(),
+    },
+    { accessorKey: 'templates', header: 'Templates' },
+    {
+      header: 'Actions',
+      cell: ({ row }: { row: any }) => (
+        <Box display="flex" gap={1}>
+          <IconButton
+            onClick={() => handleOpenEditModal(row.original)} // Opens edit modal
+            color="primary"
+          >
+            <Edit />
+          </IconButton>
+          <IconButton color="error">
+            <BlockIcon />
+          </IconButton>
+          <IconButton color="primary">
+            <LockOpenIcon />
+          </IconButton>
+
+          <IconButton
+            onClick={() => handleOpenDeleteModal(row.original.id)}
+            color="error"
+          >
+            <Delete />
+          </IconButton>
+        </Box>
+      ),
+    },
+  ];
+
+  // Setup table instance
+  const table = useReactTable({
+    data: data || [],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  if (isLoading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  return (
+    <Paper sx={{ padding: 2 }}>
+      <Typography variant="h5" gutterBottom>
+        Users
+      </Typography>
+      <Box display="flex" justifyContent="flex-end" mb={2}>
+        <IconButton color="primary" onClick={handleOpenAddUserModal}>
+          <AddCircleOutlineIcon fontSize="large" />
+        </IconButton>
+      </Box>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              {table.getHeaderGroups().map((headerGroup) =>
+                headerGroup.headers.map((header) => (
+                  <TableCell
+                    key={header.id}
+                    sx={{
+                      backgroundColor: '#1976D2',
+                      color: 'white',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
+                  </TableCell>
+                )),
+              )}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      {/* Add User Modal */}
+      <Modal open={openAddUserModal} onClose={handleCloseAddUserModal}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 400,
+            bgcolor: 'background.paper',
+            p: 3,
+            borderRadius: 2,
+            boxShadow: 24,
+            textAlign: 'center',
+          }}
+        >
+          <Typography variant="h6" mb={2}>
+            Add New User
+          </Typography>
+
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>User Category</InputLabel>
+              <Controller
+                name="userCategoryId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    {...field}
+                    value={field.value || 1} // Ensure default value is 1
+                    onChange={(e) => field.onChange(Number(e.target.value))} // Convert to number
+                  >
+                    <MenuItem value={1} disabled>
+                      User Category
+                    </MenuItem>{' '}
+                    {/* Default but disabled */}
+                    <MenuItem value={2}>Admin</MenuItem>
+                    <MenuItem value={3}>Employee</MenuItem>
+                  </Select>
+                )}
+              />
+            </FormControl>
+
+            <Controller
+              name="name"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  margin="normal"
+                  label="Name"
+                  required
+                />
+              )}
+            />
+
+            <Controller
+              name="mobileNo"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  margin="normal"
+                  label="Mobile No"
+                  required
+                />
+              )}
+            />
+
+            <TextField
+              fullWidth
+              margin="normal"
+              label="Password"
+              value="password"
+              disabled
+            />
+
+            <Box mt={2} display="flex" justifyContent="space-between">
+              <Button
+                onClick={handleCloseAddUserModal}
+                variant="outlined"
+                color="secondary"
+              >
+                Cancel
+              </Button>
+
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                disabled={addUserMutation.isPending}
+              >
+                {addUserMutation.isPending ? 'Adding...' : 'Add'}
+              </Button>
+            </Box>
+          </form>
+        </Box>
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal open={openEditUserModal} onClose={handleCloseEditModal}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 400,
+            bgcolor: 'background.paper',
+            p: 3,
+            borderRadius: 2,
+            boxShadow: 24,
+            textAlign: 'center',
+          }}
+        >
+          <Typography variant="h6" mb={2}>
+            Edit User
+          </Typography>
+          {selectedUser && (
+            <form onSubmit={handleSubmit(handleEditSubmit)}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>User Category</InputLabel>
+                <Controller
+                  name="userCategoryId"
+                  control={control}
+                  defaultValue={Number(selectedUser.userCategoryId)}
+                  render={({ field }) => (
+                    <Select
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    >
+                      <MenuItem value={1} disabled>
+                        User Category
+                      </MenuItem>
+                      <MenuItem value={2}>Admin</MenuItem>
+                      <MenuItem value={3}>Employee</MenuItem>
+                    </Select>
+                  )}
+                />
+              </FormControl>
+
+              <Controller
+                name="name"
+                control={control}
+                defaultValue={selectedUser.name}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    margin="normal"
+                    label="Name"
+                    required
+                  />
+                )}
+              />
+
+              <Controller
+                name="mobileNo"
+                control={control}
+                defaultValue={selectedUser.mobileNo}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    margin="normal"
+                    label="Mobile No"
+                    required
+                  />
+                )}
+              />
+
+              <Box mt={2} display="flex" justifyContent="space-between">
+                <Button onClick={handleCloseEditModal} color="secondary">
+                  Cancel
+                </Button>
+                <Button type="submit" variant="contained" color="primary">
+                  Update
+                </Button>
+              </Box>
+            </form>
+          )}
+        </Box>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={openDeleteModal} onClose={handleCloseDeleteModal}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 400,
+            bgcolor: 'background.paper',
+            p: 3,
+            borderRadius: 2,
+            boxShadow: 24,
+            textAlign: 'center',
+          }}
+        >
+          <Typography variant="h6" mb={2}>
+            Are you sure you want to delete this item?
+          </Typography>
+          <Box display="flex" justifyContent="center" gap={2}>
+            <Button onClick={handleCloseDeleteModal} color="secondary">
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleConfirmDelete}
+            >
+              Delete
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+    </Paper>
+  );
+};
+
+export default Users;
