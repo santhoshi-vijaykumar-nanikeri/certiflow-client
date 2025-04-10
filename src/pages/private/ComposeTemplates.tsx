@@ -1,7 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
-import axios from 'axios';
 import { useSnackbar } from 'src/Components/SnackbarContext';
 import {
   Box,
@@ -22,6 +21,11 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircle';
+import { useNavigate } from 'react-router-dom';
+import { httpClient } from 'src/services/httpClient';
+import { getUserId } from 'src/utils/helpers';
+
+const userId = getUserId();
 
 // Type Definitions
 interface Category {
@@ -41,21 +45,12 @@ interface Template {
   createdBy: string;
   createdOn: string;
 }
-type TemplateType = { id: number; userId: number; name: string };
 
-// Delete a template by ID
-const deleteTemplate = async (templateId: number) => {
-  await axios.delete(`http://localhost:3000/templates/${templateId}`, {
-    headers: { Authorization: 'Bearer ' + sessionStorage.getItem('authToken') },
-  });
-};
+type TemplateType = { id: number; userId: number; name: string };
 
 // Fetch all categories
 const fetchCategories = async (): Promise<Category[]> => {
-  const response = await axios.get('http://localhost:3000/categories', {
-    headers: { Authorization: 'Bearer ' + sessionStorage.getItem('authToken') },
-  });
-  return response.data.data || [];
+  return await httpClient.get('/categories');
 };
 
 // Fetch subcategories for a given category
@@ -63,15 +58,7 @@ const fetchSubcategories = async (
   categoryId: string,
 ): Promise<Subcategory[]> => {
   if (!categoryId) return [];
-  const response = await axios.get(
-    `http://localhost:3000/categories/${categoryId}/subcategories`,
-    {
-      headers: {
-        Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-      },
-    },
-  );
-  return response.data.data || [];
+  return await httpClient.get(`/categories/${categoryId}/subcategories`);
 };
 
 // Fetch templates for a subcategory
@@ -80,16 +67,9 @@ const fetchSubcategoryTemplate = async (
   userId: string | null,
 ): Promise<Template[]> => {
   if (!subcategoryId || !userId) return [];
-  const response = await axios.post(
-    `http://localhost:3000/subcategories/${subcategoryId}/templates`,
-    { userId },
-    {
-      headers: {
-        Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-      },
-    },
-  );
-  return response.data.data || [];
+  return await httpClient.post(`/subcategories/${subcategoryId}/templates`, {
+    userId,
+  });
 };
 
 // Add a new template
@@ -98,20 +78,11 @@ const addTemplate = async (
   subcategoryId: string,
   userId: string | null,
 ) => {
-  const response = await axios.post(
-    'http://localhost:3000/templates',
-    {
-      name: templateName,
-      subcategoryId,
-      userId,
-    },
-    {
-      headers: {
-        Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-      },
-    },
-  );
-  return response.data;
+  return await httpClient.post('/templates', {
+    name: templateName,
+    subcategoryId,
+    userId,
+  });
 };
 
 // Update an existing template
@@ -120,25 +91,18 @@ const updateTemplate = async (
   userId: number,
   newName: string,
 ) => {
-  await axios.put(
-    `http://localhost:3000/templates`,
-    { id: templateId, userId, name: newName }, // Send the required payload
-    {
-      headers: {
-        Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-      },
-    },
-  );
+  await httpClient.put('/templates', { id: templateId, userId, name: newName });
+};
+// Delete a template by ID
+const deleteTemplate = async (templateId: number) => {
+  await httpClient.delete(`/templates/${templateId}`);
 };
 
 // 🔹 Main Component
 const ComposeTemplate: React.FC = () => {
   // Form handling
   const { control, watch, setValue } = useForm();
-  const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
-  const userId = sessionStorage.getItem('userId'); // Returns a string
-
   // Form state tracking
   const selectedCategory = watch('category') as string;
   const selectedSubcategory = watch('subcategory') as string;
@@ -152,6 +116,8 @@ const ComposeTemplate: React.FC = () => {
   const [openAddModal, setOpenAddModal] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  const navigate = useNavigate();
 
   // 🔹 Fetch Categories
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -184,8 +150,6 @@ const ComposeTemplate: React.FC = () => {
   // Add template mutation
   const mutation = useMutation({
     mutationFn: () => {
-      const userId = sessionStorage.getItem('userId'); // Returns a string
-
       return addTemplate(newTemplateName, selectedSubcategory, userId);
     },
     onSuccess: () => {
@@ -203,12 +167,10 @@ const ComposeTemplate: React.FC = () => {
       name,
     }: {
       id: number;
-      userId: number;
+      userId: number | string | null; // Ensure it allows different types
       name: string;
     }) => {
-      const userId = Number(sessionStorage.getItem('userId')) || 0; // Convert to number, fallback to 0
-
-      return updateTemplate(id, userId, name);
+      return updateTemplate(id, Number(userId), name);
     },
     onSuccess: () => {
       setOpenEditModal(false);
@@ -226,6 +188,10 @@ const ComposeTemplate: React.FC = () => {
       refetch();
     },
   });
+
+  const handleComposeClick = (id: number) => {
+    navigate(`/home/templates/${id}`);
+  };
 
   return (
     <>
@@ -332,7 +298,6 @@ const ComposeTemplate: React.FC = () => {
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
                     Template
                   </TableCell>
-
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
                     Created by
                   </TableCell>
@@ -378,7 +343,11 @@ const ComposeTemplate: React.FC = () => {
                         </IconButton>
                       </TableCell>
                       <TableCell>
-                        <Button variant="contained" color="primary">
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          onClick={() => handleComposeClick(template.id)}
+                        >
                           COMPOSE
                         </Button>
                       </TableCell>

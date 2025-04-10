@@ -1,11 +1,6 @@
-import {
-  useQuery,
-  QueryClient,
-  useQueryClient,
-  useMutation,
-} from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -30,14 +25,14 @@ import {
   Select,
   InputLabel,
 } from '@mui/material';
-import axios from 'axios';
 import { Delete, Edit } from '@mui/icons-material';
 import BlockIcon from '@mui/icons-material/Block';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { useSnackbar } from 'src/Components/SnackbarContext';
+import { httpClient } from 'src/services/httpClient';
+import { getUserId } from 'src/utils/helpers';
 
-// Define Type for User Payload
 interface UserPayload {
   id?: number;
   mobileNo: string;
@@ -45,206 +40,110 @@ interface UserPayload {
   userCategoryId: string;
   userId: number;
 }
-// Fetch Users Function
-const fetchUsers = async () => {
-  const response = await axios.get('http://localhost:3000/users', {
-    headers: {
-      Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-    },
-  });
-  return response.data.data; // Extracting 'data' array
+
+interface FormData {
+  name: string;
+  mobileNo: string;
+  userCategoryId: string;
+  password?: string;
+}
+
+const defaultFormValues: FormData = {
+  name: '',
+  mobileNo: '',
+  userCategoryId: '',
+  password: 'password',
 };
+
 const Users = () => {
-  const { data, error, isLoading } = useQuery({
-    queryKey: ['users'],
-    queryFn: fetchUsers,
-  });
+  const userId = Number(getUserId());
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
 
-  // State Management for Modals and Selection
   const [openAddUserModal, setOpenAddUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserPayload | null>(null);
   const [openEditUserModal, setOpenEditUserModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  // Retrieve User ID from sessionStorage
-  const userId = useMemo(() => {
-    return sessionStorage.getItem('userId')
-      ? Number(sessionStorage.getItem('userId'))
-      : null;
-  }, []);
+  const { control, handleSubmit, reset } = useForm<FormData>({ defaultValues: defaultFormValues });
 
-  // React Hook Form Setup
-  const { control, handleSubmit, reset } = useForm({
-    defaultValues: {
-      name: '',
-      mobileNo: '',
-      userCategoryId: 1,
-      password: 'password', // Pre-filled but non-editable
-    },
+  const { data, error, isLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => await httpClient.get('/users'),
   });
 
-  // Mutation for Adding User
-  const addUserMutation = useMutation<UserPayload, Error, UserPayload>({
-    mutationFn: async (newUser: UserPayload) => {
-      const response = await axios.post(
-        'http://localhost:3000/users',
-        newUser,
-        {
-          headers: {
-            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      return response.data;
-    },
+  const addUserMutation = useMutation({
+    mutationFn: async (newUser: UserPayload) => await httpClient.post('/users', newUser),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       showSnackbar('User added successfully', 'success');
-      handleCloseAddUserModal(); // Close modal on success
+      handleCloseAddUserModal();
     },
-    onError: () => {
-      showSnackbar('Failed to add user', 'error');
-    },
+    onError: () => showSnackbar('Failed to add user', 'error'),
   });
 
-  // Edit User Mutation
   const editUserMutation = useMutation({
-    mutationFn: async (updatedUser: UserPayload) => {
-      try {
-        const response = await axios.put(
-          `http://localhost:3000/users`,
-          updatedUser,
-          {
-            headers: {
-              Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-              'Content-Type': 'application/json',
-            },
-            validateStatus: (status) => status < 400, // Ensures 4xx/5xx throw errors
-          },
-        );
-        return response.data;
-      } catch (error: any) {
-        // Ensure we correctly throw errors so they are caught in onError
-        if (error.response) {
-          throw error.response; // This will pass the entire response object
-        }
-        throw new Error('Something went wrong!');
-      }
-    },
-    onSuccess: (data) => {
-      if (data?.statusCode === 409) {
-        // Prevent showing success if conflict error occurs
-        showSnackbar('User exists!', 'error');
-        return;
-      }
+    mutationFn: async (updatedUser: UserPayload) => await httpClient.put('/users', updatedUser),
+    onSuccess: (data: any) => {
+      if (data?.statusCode === 409) return showSnackbar('User exists!', 'error');
       queryClient.invalidateQueries({ queryKey: ['users'] });
       showSnackbar('User updated successfully', 'success');
-      setOpenEditUserModal(false);
-      setSelectedUser(null);
+      handleCloseEditModal();
     },
     onError: (error: any) => {
-      console.error('Mutation Error:', error);
-
-      const errorMessage =
-        error?.data?.message || error?.message || 'Something went wrong!';
+      const errorMessage = error?.data?.message || error?.message || 'Something went wrong!';
       const statusCode = error?.status || error?.statusCode;
-
-      if (statusCode === 409) {
-        showSnackbar('User exists!', 'error');
-      } else {
-        showSnackbar(errorMessage, 'error');
-      }
+      statusCode === 409 ? showSnackbar('User exists!', 'error') : showSnackbar(errorMessage, 'error');
     },
   });
 
-  // Mutation for Deleting User
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await axios.delete(`http://localhost:3000/users/${id}`, {
-        headers: {
-          Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-        },
-      });
-      return response.data;
-    },
+    mutationFn: async (id: number) => await httpClient.delete(`/users/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       showSnackbar('User deleted successfully', 'success');
-      setOpenDeleteModal(false);
+      handleCloseDeleteModal();
     },
   });
-  // Handle Add User Form Submission
-  const onSubmit = (data: any) => {
-    if (!userId) {
-      console.error('User ID is missing from sessionStorage!');
-      return; // Prevent API call if userId is missing
-    }
 
-    const payload: UserPayload = {
-      mobileNo: data.mobileNo,
-      name: data.name,
-      userCategoryId: data.userCategoryId,
-      userId, // Now properly retrieved
-    };
-
-    addUserMutation.mutate(payload);
+  const onSubmit = (data: FormData) => {
+    if (!userId) return console.error('User ID is missing!');
+    addUserMutation.mutate({ ...data, userId });
   };
-  // Open & Close Handlers
+
+  const handleEditSubmit = (data: FormData) => {
+    if (!selectedUser || !userId) return;
+    editUserMutation.mutate({ ...data, id: selectedUser.id, userId });
+  };
+
   const handleOpenAddUserModal = () => {
-    // @ts-ignore
-    reset({ name: '', mobileNo: '', userCategoryId: '' }); // Reset form fields before opening the modal
+    reset(defaultFormValues);
     setOpenAddUserModal(true);
   };
 
   const handleCloseAddUserModal = () => {
+    reset(defaultFormValues);
     setOpenAddUserModal(false);
-    // @ts-ignore
-    reset({ name: '', mobileNo: '', userCategoryId: '' }); // Ensure fields are cleared when closing
   };
 
-  // Open Edit User Modal
   const handleOpenEditModal = (user: UserPayload) => {
     setSelectedUser(user);
     reset({
-      // Reset form fields with selected user's existing data
       name: user.name,
       mobileNo: user.mobileNo,
-      userCategoryId: Number(user.userCategoryId),
+      userCategoryId: user.userCategoryId,
     });
     setOpenEditUserModal(true);
   };
 
-  // Close Edit Modal
   const handleCloseEditModal = () => {
+    reset(defaultFormValues);
     setSelectedUser(null);
     setOpenEditUserModal(false);
   };
 
-  // Handle Edit Submission
-  const handleEditSubmit = (data: any) => {
-    if (!selectedUser) return;
-    if (!userId) {
-      console.error('User ID is missing from sessionStorage!');
-      return; // Prevent API call if userId is missing
-    }
-
-    const updatedUser = {
-      id: selectedUser.id,
-      mobileNo: data.mobileNo,
-      name: data.name,
-      userCategoryId: data.userCategoryId,
-      userId,
-    };
-
-    editUserMutation.mutate(updatedUser);
-  };
-
-  // Handlers for deletion
-  const handleOpenDeleteModal = (id: string) => {
+  const handleOpenDeleteModal = (id: number) => {
     setDeleteId(id);
     setOpenDeleteModal(true);
   };
@@ -255,56 +154,34 @@ const Users = () => {
   };
 
   const handleConfirmDelete = () => {
-    if (deleteId) deleteMutation.mutate(Number(deleteId));
+    if (deleteId !== null) deleteMutation.mutate(deleteId);
   };
 
-  // Define columns for React Table
   const columns = [
-    {
-      header: 'S.No.',
-      cell: (info: { row: { index: number } }) => info.row.index + 1, // Display serial number starting from 1
-    },
+    { header: 'S.No.', cell: ({ row }: any) => row.index + 1 },
     { accessorKey: 'name', header: 'User' },
     { accessorKey: 'userCategory', header: 'User Category' },
     { accessorKey: 'mobileNo', header: 'Mobile No' },
-
     { accessorKey: 'createdBy', header: 'Created By' },
     {
       accessorKey: 'createdOn',
       header: 'Created On',
-      cell: (info: { getValue: () => string | number | Date }) =>
-        new Date(info.getValue()).toLocaleDateString(),
+      cell: ({ getValue }: any) => new Date(getValue()).toLocaleDateString(),
     },
     { accessorKey: 'templates', header: 'Templates' },
     {
       header: 'Actions',
-      cell: ({ row }: { row: any }) => (
+      cell: ({ row }: any) => (
         <Box display="flex" gap={1}>
-          <IconButton
-            onClick={() => handleOpenEditModal(row.original)} // Opens edit modal
-            color="primary"
-          >
-            <Edit />
-          </IconButton>
-          <IconButton color="error">
-            <BlockIcon />
-          </IconButton>
-          <IconButton color="primary">
-            <LockOpenIcon />
-          </IconButton>
-
-          <IconButton
-            onClick={() => handleOpenDeleteModal(row.original.id)}
-            color="error"
-          >
-            <Delete />
-          </IconButton>
+          <IconButton onClick={() => handleOpenEditModal(row.original)} color="primary"><Edit /></IconButton>
+          <IconButton color="error"><BlockIcon /></IconButton>
+          <IconButton color="primary"><LockOpenIcon /></IconButton>
+          <IconButton onClick={() => handleOpenDeleteModal(row.original.id)} color="error"><Delete /></IconButton>
         </Box>
       ),
     },
   ];
 
-  // Setup table instance
   const table = useReactTable({
     data: data || [],
     columns,
@@ -312,13 +189,10 @@ const Users = () => {
   });
 
   if (isLoading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error.message}</p>;
+  if (error) return <p>Error: {(error as Error).message}</p>;
 
   return (
     <Paper sx={{ padding: 2 }}>
-      <Typography variant="h5" gutterBottom>
-        Users
-      </Typography>
       <Box display="flex" justifyContent="flex-end" mb={2}>
         <IconButton color="primary" onClick={handleOpenAddUserModal}>
           <AddCircleOutlineIcon fontSize="large" />
@@ -487,7 +361,7 @@ const Users = () => {
                 <Controller
                   name="userCategoryId"
                   control={control}
-                  defaultValue={Number(selectedUser.userCategoryId)}
+                  defaultValue={selectedUser.userCategoryId}
                   render={({ field }) => (
                     <Select
                       {...field}

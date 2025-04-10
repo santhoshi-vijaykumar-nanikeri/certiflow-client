@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import {
   useReactTable,
   getCoreRowModel,
@@ -21,39 +20,31 @@ import {
   Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useSnackbar } from  "src/Components/SnackbarContext";
+import { useSnackbar } from 'src/Components/SnackbarContext';
+import { httpClient } from 'src/services/httpClient';
+import { getUserId } from 'src/utils/helpers';
+
+const userId = getUserId();
 
 // Fetch templates API function
 const fetchUserTemplates = async (userId: string) => {
   console.log('Fetching templates for userId:', userId);
   if (!userId) throw new Error('User ID not found');
 
-  const response = await axios.get(
-    `http://localhost:3000/templates/userTemplates/${userId}/all`,
-    {
-      headers: {
-        Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-      },
-    },
+  const response = await httpClient.get(
+    `/templates/userTemplates/${userId}/all`,
   );
 
-  return response.data.data || []; // Extract 'data' array
+  return response || []; // Extract 'data' array
 };
 
 const UserTemplates = () => {
   const queryClient = useQueryClient();
-    const { showSnackbar } = useSnackbar();
-
+  const { showSnackbar } = useSnackbar();
 
   // State for Delete Category Modal
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-
-    // Retrieve userId from sessionStorage
-  const userId = useMemo(() => {
-    return String(sessionStorage.getItem('userId') || '');
-  }, []);
-  
 
   // Fetch user templates using React Query
   const { data: templates = [], isError } = useQuery({
@@ -65,24 +56,15 @@ const UserTemplates = () => {
   // Delete Template Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await axios.delete(
-        `http://localhost:3000/templates/userTemplates/${id}`,
-        {
-          headers: {
-            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-          },
-        },
-      );
-      return response.data;
+      return httpClient.delete(`/templates/userTemplates/${id}`);
     },
+
     onSuccess: (_, id) => {
-      queryClient.setQueryData(
-        ['userTemplates', userId],
-        (oldData: any) =>
-          oldData ? oldData.filter((template: any) => template.id !== id) : [],
+      queryClient.setQueryData(['userTemplates', userId], (oldData: any) =>
+        oldData ? oldData.filter((template: any) => template.id !== id) : [],
       );
       queryClient.invalidateQueries({ queryKey: ['userTemplates'] });
-      showSnackbar("UserTemplate deleted successfully!", "success");
+      showSnackbar('UserTemplate deleted successfully!', 'success');
       setOpenDeleteModal(false);
     },
   });
@@ -146,10 +128,6 @@ const UserTemplates = () => {
 
   return (
     <>
-      <Typography variant="h5" gutterBottom>
-        User Templates
-      </Typography>
-
       {!userId && (
         <Typography color="error">User ID not found. Please log in.</Typography>
       )}
@@ -204,7 +182,7 @@ const UserTemplates = () => {
         <p>No templates found.</p>
       )}
 
-            {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       <Modal open={openDeleteModal} onClose={handleCloseDeleteModal}>
         <Box
           sx={{
@@ -237,7 +215,6 @@ const UserTemplates = () => {
           </Box>
         </Box>
       </Modal>
-     
     </>
   );
 };

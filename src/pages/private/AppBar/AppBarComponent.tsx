@@ -18,27 +18,20 @@ import {
   TextField,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-
-// API call to fetch user details
-const fetchUserDetails = async () => {
-  const response = await axios.get(
-    'http://localhost:3000/users/1/userDetails',
-    {
-      headers: {
-        Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-      },
-    },
-  );
-  console.log('API Response:', response.data); // Debugging
-  return response.data?.data?.[0]; // Extracting the first object inside 'data' array
-};
+import { httpClient } from 'src/services/httpClient';
+import { getUserId } from 'src/utils/helpers';
+import { usePrivateRouter } from 'src/context/PrivateRouterContext';
+import { logoutUser } from 'src/utils/logout';
+import { useDispatch } from 'react-redux';
 
 const AppBarComponent = () => {
+  const dispatch = useDispatch();
+  const { setAuthStatus } = usePrivateRouter();
+  const userId = Number(getUserId());
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const userId = sessionStorage.getItem('userId');
 
-   // State management
+  // State management
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -50,32 +43,28 @@ const AppBarComponent = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-    // Fetch user details (disabled auto-fetch)
+  // API call to fetch user details
+  const fetchUserDetails = async () => {
+    const response = await httpClient.get(`/users/${userId}/userDetails`);
+
+    return response?.[0]; // Extracting the first object inside 'data' array
+  };
+  // Fetch user details (disabled auto-fetch)
   const { data: userDetails, refetch: refetchUserDetails } = useQuery({
     queryKey: ['userDetails'],
     queryFn: fetchUserDetails,
     enabled: false, // Disable auto-fetch
   });
 
-    // Password update mutation
+  // Password update mutation
   const mutation = useMutation({
     mutationFn: async (data: {
       userId: number;
       oldPassword: string;
       newPassword: string;
     }) => {
-  
-
-      const response = await axios.put(
-        'http://localhost:3000/users/changePassword',
-        data,
-        {
-          headers: {
-            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-          },
-        },
-      );
-      return response.data;
+      const response = await httpClient.put('/users/changePassword', data);
+      return response;
     },
     onSuccess: () => {
       setSuccessMessage('Password updated successfully!');
@@ -90,13 +79,14 @@ const AppBarComponent = () => {
     },
   });
 
-   // Event handlers
+  // Event handlers
   const handleProfileOpen = async () => {
     await refetchUserDetails();
     setProfileOpen(true);
     handleCloseMenu();
   };
   const handleProfileClose = () => setProfileOpen(false);
+
   const handlePasswordDialogOpen = () => {
     setPasswordDialogOpen(true);
     handleCloseMenu();
@@ -107,8 +97,10 @@ const AppBarComponent = () => {
   const handleCloseMenu = () => setMenuAnchor(null);
 
   const handleLogout = () => {
-    sessionStorage.removeItem('authToken');
-    navigate('/', { replace: true });
+    if (window.confirm('Are you sure you want to logout?')) {
+      logoutUser(dispatch, setAuthStatus);
+      navigate('/', { replace: true });
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,7 +114,7 @@ const AppBarComponent = () => {
     }
 
     mutation.mutate({
-      userId:Number(userId),
+      userId: Number(userId),
       oldPassword: formData.oldPassword,
       newPassword: formData.newPassword,
     });
@@ -147,17 +139,19 @@ const AppBarComponent = () => {
             <MenuItem onClick={() => navigate('/home/categories/view-all')}>
               Categories
             </MenuItem>
-            <MenuItem onClick={() => navigate('/library')}>Library</MenuItem>
-            <MenuItem onClick={() => navigate('/compose-templates')}>
+            <MenuItem onClick={() => navigate('/home/library')}>
+              Library
+            </MenuItem>
+            <MenuItem onClick={() => navigate('/home/templates/view-all')}>
               Compose Templates
             </MenuItem>
-            <MenuItem onClick={() => navigate('/draft-templates')}>
+            <MenuItem onClick={() => navigate('/home/draft-templates')}>
               Draft Templates
             </MenuItem>
-            <MenuItem onClick={() => navigate('/user-templates')}>
+            <MenuItem onClick={() => navigate('/home/user-templates/view-all')}>
               User Templates
             </MenuItem>
-            <MenuItem onClick={() => navigate('/users')}>Users</MenuItem>
+            <MenuItem onClick={() => navigate('/home/users')}>Users</MenuItem>
           </Box>
 
           {/* User Profile Menu*/}
@@ -185,7 +179,7 @@ const AppBarComponent = () => {
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>Profile Details</DialogTitle>
+        <DialogTitle></DialogTitle>
         <DialogContent>
           {userDetails ? (
             <Box>
@@ -267,6 +261,5 @@ const AppBarComponent = () => {
     </>
   );
 };
-console.log('Stored User ID:', sessionStorage.getItem('userId'));
 
 export default AppBarComponent;

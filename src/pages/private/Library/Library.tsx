@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useEffect, useState } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
 } from '@tanstack/react-table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSnackbar } from  "src/Components/SnackbarContext";
+import { useSnackbar } from 'src/Components/SnackbarContext';
 import {
   Table,
   TableHead,
@@ -25,17 +24,17 @@ import {
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircle';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import SubcategorySelector from './SubcategorySelector';
+import { httpClient } from 'src/services/httpClient';
+import { getUserId } from 'src/utils/helpers';
 
-
-const API_URL = 'http://localhost:3000/fieldNames';
+const userId = Number(getUserId());
 
 const Library = () => {
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
 
-    // State Management
-  const [activeButton, setActiveButton] = useState<string | null>(null); // Initially no button is active
+  // State Management
+  const [activeButton, setActiveButton] = useState('Field Names');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -54,32 +53,20 @@ const Library = () => {
   } = useQuery({
     queryKey: ['fieldNames'],
     queryFn: async () => {
-      const { data } = await axios.get(API_URL, {
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('authToken')}`,
-        },
-      });
-      return data.data || [];
+      const data = await httpClient.get('/fieldNames');
+
+      return data || [];
     },
   });
 
   // ✅ Add Field Mutation
   const addFieldMutation = useMutation({
     mutationFn: async (newField: { name: string; userId: number }) => {
-      const userId = Number(sessionStorage.getItem('userId')) || 0; // Ensure it's a number
-      return axios.post(
-        API_URL,
-        { ...newField, userId },
-        {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('authToken')}`,
-          },
-        },
-      );
+      return httpClient.post('/fieldNames', { ...newField, userId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fieldNames'] });
-      showSnackbar("Field Name added successfully!", "success");
+      showSnackbar('Field Name added successfully!', 'success');
       setIsAddModalOpen(false);
       setNewFieldName('');
     },
@@ -92,20 +79,11 @@ const Library = () => {
       name: string;
       userId: number;
     }) => {
-      const userId = Number(sessionStorage.getItem('userId')) || 0; // Ensure it's a number
-      return axios.put(
-        API_URL,
-        { ...updatedField, userId },
-        {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('authToken')}`,
-          },
-        },
-      );
+      return httpClient.put('/fieldNames', { ...updatedField, userId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fieldNames'] });
-      showSnackbar("Field Name updated successfully!", "success");
+      showSnackbar('Field Name updated successfully!', 'success');
       setIsEditModalOpen(false);
       setNewFieldName('');
       setEditField(null);
@@ -115,21 +93,17 @@ const Library = () => {
   // ✅ Delete Field Mutation
   const deleteFieldMutation = useMutation({
     mutationFn: async (id: number) => {
-      return axios.delete(`${API_URL}/${id}`, {
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('authToken')}`,
-        },
-      });
+      return httpClient.delete(`/fieldNames/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fieldNames'] });
-      showSnackbar("Field Name deleted successfully!", "success");
+      showSnackbar('Field Name deleted successfully!', 'success');
       setIsDeleteModalOpen(false);
       setDeleteId(null);
     },
   });
 
-    // Table Columns Configuration
+  // Table Columns Configuration
   const columns = [
     {
       accessorKey: 'id',
@@ -191,12 +165,14 @@ const Library = () => {
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+  useEffect(() => {
+    refetch(); // ✅ Fetch data when the component mounts
+  }, []);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* ✅ Buttons to switch between Field Names & Subcategories */}
       <Box sx={{ display: 'flex', gap: 2 }}>
-        {['Field Names', 'Subcategories'].map((tab) => (
+        {['Field Names'].map((tab) => (
           <Button
             key={tab}
             variant="contained"
@@ -207,21 +183,12 @@ const Library = () => {
                 backgroundColor: activeButton === tab ? '#1565c0' : '#f0f0f0',
               },
             }}
-            onClick={() => {
-              setActiveButton(tab);
-              if (tab === 'Field Names') {
-                refetch(); // ✅ Fetch data only when 'Field Names' is clicked
-              }
-            }}
+            onClick={() => setActiveButton(tab)}
           >
             {tab}
           </Button>
         ))}
       </Box>
-
-      {/* ✅ Show SubcategorySelector when 'Subcategories' is active */}
-      {activeButton === 'Subcategories' && <SubcategorySelector />}
-
       {/* ✅ Displays Table if "Field Names" is active & data is available */}
       {activeButton === 'Field Names' && fieldNames.length > 0 && (
         <Paper sx={{ padding: 2 }}>
@@ -300,7 +267,6 @@ const Library = () => {
               variant="contained"
               color="primary"
               onClick={() => {
-                const userId = Number(sessionStorage.getItem('userId')) || 0; // Convert to number
                 addFieldMutation.mutate({ name: newFieldName, userId: userId });
               }}
             >
@@ -347,7 +313,7 @@ const Library = () => {
                 editFieldMutation.mutate({
                   id: editField!.id,
                   name: newFieldName,
-                  userId: 1,
+                  userId: userId,
                 })
               }
             >
@@ -402,7 +368,6 @@ const Library = () => {
           </Box>
         </Box>
       </Modal>
-      
     </Box>
   );
 };
