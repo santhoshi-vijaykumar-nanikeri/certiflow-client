@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import {
   useReactTable,
   getCoreRowModel,
@@ -25,6 +24,8 @@ import { Delete, Edit } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { useSnackbar } from 'src/Components/SnackbarContext';
+import { httpClient } from 'src/services/httpClient';
+import { getUserId } from 'src/utils/helpers';
 
 // Type Definitions
 interface Category {
@@ -36,17 +37,16 @@ interface Category {
   createdOn?: string;
 }
 
+
 // Fetch Categories
 const fetchCategories = async () => {
-  const response = await axios.get('http://localhost:3000/categories', {
-    headers: {
-      Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-    },
-  });
-  return response.data.data; // Extracting 'data' array
+  const response = await httpClient.get('/categories');
+  return response; // Ensure correct extraction
 };
 
 const Categories = () => {
+  const userId = getUserId();
+
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
 
@@ -75,11 +75,7 @@ const Categories = () => {
     setCategoryName(''); // Reset field when closing modal
   };
 
-  const handleEditClose = () => {
-    setEditOpen(false);
-    setEditCategory(null); // Reset the editCategory state when closing the modal
-  };
-
+ 
   const handleOpenDeleteModal = (id: string) => {
     setDeleteId(id);
     setOpenDeleteModal(true);
@@ -90,27 +86,19 @@ const Categories = () => {
     setOpenDeleteModal(false);
   };
 
+
   // Add Category Mutation
   const addCategoryMutation = useMutation({
     mutationFn: async (newCategory: { name: string; userId: number }) => {
-      const userId = sessionStorage.getItem('userId');
       if (!userId) {
         console.error('User ID is missing! Cannot create category.');
         return;
       }
 
-      const response = await axios.post(
-        'http://localhost:3000/categories',
-        { name: newCategory.name, userId: Number(userId) }, // Ensure userId is a number
-        {
-          headers: {
-            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-          },
-        },
-      );
-
-      console.log('API Response:', response.data); // 🔍 Debugging
-      return response.data; // ✅ Ensure the response contains the new category
+      return httpClient.post('/categories', {
+        name: newCategory?.name,
+        userId: Number(userId),
+      });
     },
     onSuccess: (newCategory) => {
       queryClient.setQueryData(['categories'], (oldData: any) => {
@@ -130,27 +118,15 @@ const Categories = () => {
         console.error('Missing category data.');
         return;
       }
-      const userId = sessionStorage.getItem('userId');
-
       if (!userId) {
         console.error('User ID is missing! Cannot update category.');
         return;
       }
 
-      const response = await axios.put(
-        `http://localhost:3000/categories`, // Ensure correct endpoint
-        {
-          id: updatedCategory.id,
-          name: updatedCategory.name,
-          userId: Number(userId),
-        },
-        {
-          headers: {
-            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-          },
-        },
-      );
-      return response.data;
+      return httpClient.put(`/categories`, {
+        ...updatedCategory,
+        userId: Number(userId),
+      });
     },
     onSuccess: (updatedCategory) => {
       queryClient.setQueryData(['categories'], (oldData: any) => {
@@ -168,22 +144,13 @@ const Categories = () => {
 
   // Delete Category Mutation
   const deleteCategoryMutation = useMutation({
-    mutationFn: async (categoryId: number) => {
-      const response = await axios.delete(
-        `http://localhost:3000/categories/${categoryId}`,
-        {
-          headers: {
-            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-          },
-        },
-      );
-      return response.data;
-    },
+    mutationFn: async (categoryId: number) =>
+      httpClient.delete(`/categories/${categoryId}`),
     onSuccess: (_, categoryId) => {
       // ✅ Remove the deleted category from the UI
       queryClient.setQueryData(['categories'], (oldData: any) => {
         if (!oldData) return [];
-        return oldData.filter((category: any) => category.id !== categoryId);
+        return oldData.filter((category: any) => category?.id !== categoryId);
       });
 
       // ✅ Also refetch data to ensure accurate sync
@@ -195,10 +162,9 @@ const Categories = () => {
 
   // Handle Add Category
   const handleAddCategory = () => {
-    const userId = sessionStorage.getItem('userId');
     if (!categoryName.trim()) return; // Prevent empty submissions
     if (!userId) {
-      console.error('User ID is missing from sessionStorage!');
+      console.error('User ID is missing from localStorage!');
       return;
     }
     addCategoryMutation.mutate(
@@ -211,35 +177,19 @@ const Categories = () => {
     );
   };
   // Handle Edit Click
-  const handleEdit = (category: Category) => {
-    if (!category.name) {
+  const handleEdit = (category?: Category) => {
+    if (!category || !category.name) {
       console.error('Category is missing a name:', category);
       return; // Prevent setting incomplete data
     }
     setEditCategory(category);
     setEditOpen(true);
   };
-
-  // Handle Update Category
-  const handleUpdateCategory = () => {
-    if (!editCategory || !editCategory.id || !editCategory.name.trim()) return;
-
-    const userId = sessionStorage.getItem('userId');
-
-    if (!userId) {
-      console.error('User ID is missing! Cannot update category.');
-      return;
-    }
-
-    updateCategoryMutation.mutate(
-      { id: editCategory.id, name: editCategory.name, userId: Number(userId) },
-      {
-        onSuccess: () => {
-          handleEditClose();
-        },
-      },
-    );
+  const handleEditClose = () => {
+    setEditOpen(false);
+    setEditCategory(null); // Reset the editCategory state when closing the modal
   };
+
 
   // Handle Deleting a Category
   const handleConfirmDelete = () => {
@@ -256,21 +206,22 @@ const Categories = () => {
   const columns = [
     {
       header: 'S.No.',
-      cell: (info: { row: { index: number } }) => info.row.index + 1, // Display serial number starting from 1
+      cell: (info: { row: { index: number } }) => info?.row?.index + 1, // Display serial number starting from 1
     },
     {
       accessorKey: 'name',
       header: 'Category Name',
+      
     },
     {
       accessorKey: 'subcategories',
       header: 'Subcategories',
       cell: (info: { row: { original: Category } }) => (
         <Link
-          to={`/categories/${info.row.original.id}`}
+          to={`/home/categories/${info?.row?.original?.id}`}
           style={{ color: 'blue', textDecoration: 'none' }}
         >
-          {info.row.original.subcategories}
+          {info?.row?.original?.subcategories}
         </Link>
       ),
     },
@@ -288,13 +239,17 @@ const Categories = () => {
     {
       header: 'Actions',
       cell: ({ row }: { row: any }) => (
+        
         <div style={{ display: 'flex', gap: '8px' }}>
           <Edit
-            onClick={() => handleEdit(row.original)}
+          
+            onClick={() =>{
+              console.log('row.original on Edit click:', row?.original);
+              handleEdit(row?.original)}}
             sx={{ cursor: 'pointer', color: 'black' }}
           />
           <Delete
-            onClick={() => handleOpenDeleteModal(row.original.id)}
+            onClick={() => handleOpenDeleteModal(row?.original?.id)}
             sx={{ cursor: 'pointer', color: 'red' }}
           />
         </div>
@@ -345,8 +300,8 @@ const Categories = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
+            {table.getRowModel().rows?.map((row) => (
+              <TableRow key={row?.id}>
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

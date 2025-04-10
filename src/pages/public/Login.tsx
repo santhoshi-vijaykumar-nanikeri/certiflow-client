@@ -2,49 +2,81 @@ import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { TextField, Button, Container, Typography, Box } from '@mui/material';
+import {
+  TextField,
+  Button,
+  Container,
+  Typography,
+  Box
+} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { usePrivateRouter } from 'src/context/PrivateRouterContext';
+import { useDispatch } from 'react-redux';
+import { setUserDetails } from 'src/store/slices/userSlice'; 
 
 interface LoginFormInputs {
   mobileNo: string;
   password: string;
 }
 
-// API call for login
+// API call
 const loginUser = async (data: LoginFormInputs) => {
   const response = await axios.post('http://localhost:3000/login', data);
   return response.data;
 };
 
 const Login = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { setAuthStatus } = usePrivateRouter(); // ✅ Access auth context
   const { control, handleSubmit } = useForm<LoginFormInputs>();
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Mutation for login API call
   const { mutate, isPending } = useMutation({
     mutationFn: loginUser,
     onSuccess: (data) => {
       console.log('🔍 Full API Response:', data);
-      // Extract userId correctly from data[0]
-    const userId = data?.data?.[0]?.id; // ✅ Correct way to get userId
-
-    if (!userId) {
-      console.error("❌ userId is missing from the response!");
-      return;
-    }
-
-      queryClient.setQueryData(['loginResponse'], data);
-      sessionStorage.setItem('authToken', data?.authToken);
-      sessionStorage.setItem('userId', userId.toString()); // ✅ Store userId properly
-      console.log("✅ Stored userId in sessionStorage:", userId);
-      navigate(`/home`);
+      const userId = data?.data?.[0]?.userId || data?.data?.[0]?.id;
+      const token = data?.authToken;
+      const loginCount = data?.data?.[0]?.loginCount;
+      const statusCode = data?.statusCode;
+      if (!userId) {
+        console.error('❌ Missing userId in response!');
+        setErrorMessage('Something went wrong. Please try again.');
+        return;
+      }
+    
+      if (statusCode === 205 || loginCount === 1) {
+        localStorage.setItem('userId', userId.toString());
+        localStorage.setItem('mustResetPassword', 'true'); // optional flag
+        navigate('/users/changeDefaultPassword');
+        return;
+      }
+    
+      if (!token) {
+        console.error('❌ Missing token in response!');
+        setErrorMessage('Something went wrong. Please try again.');
+        return;
+      }
+    
+      // ✅ Normal login flow
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userId', userId.toString());
+      localStorage.setItem('userDetails', JSON.stringify(data?.data?.[0])); 
+      dispatch(setUserDetails(data?.data?.[0])); // ✅ userDetails sent to Redux
+      console.log('Dispatched:', data?.data?.[0]);
+      setAuthStatus(true);
+      navigate('/home');
     },
     onError: (error: any) => {
-      setErrorMessage(error.response?.data?.message || 'Invalid credentials');
+      console.error('❌ Login error:', error);
+      setErrorMessage(
+        error.response?.data?.message || 'Invalid credentials'
+      );
     },
   });
+
   const onSubmit = (data: LoginFormInputs) => {
     setErrorMessage('');
     mutate(data);

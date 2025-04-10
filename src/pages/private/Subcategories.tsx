@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, {  useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -27,33 +27,31 @@ import ArrowCircleLeftIcon from '@mui/icons-material/ArrowCircleLeft';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircle';
 import { Delete, Edit } from '@mui/icons-material';
 import { useSnackbar } from 'src/Components/SnackbarContext';
+import { httpClient } from 'src/services/httpClient';
+import { getUserId } from 'src/utils/helpers';
+
+interface Subcategory {
+  id: string;
+  name: string;
+  categoryId: string;
+}
+
+const userId = Number(getUserId());
 
 // Fetch category details
 const fetchCategoryDetails = async (categoryId: string | undefined) => {
   if (!categoryId) return null;
-  const response = await axios.get(
-    `http://localhost:3000/categories/${categoryId}`,
-    {
-      headers: {
-        Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-      },
-    },
-  );
-  return response.data.data.length > 0 ? response.data.data[0] : null;
+  const response = await httpClient.get(`/categories/${categoryId}`);
+  return response?.length > 0 ? response[0] : null;
 };
 
 // Fetch subcategories
 const fetchSubcategories = async (categoryId: string | undefined) => {
   if (!categoryId) return [];
-  const response = await axios.get(
-    `http://localhost:3000/categories/${categoryId}/subcategories`,
-    {
-      headers: {
-        Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-      },
-    },
+  const response = await httpClient.get(
+    `/categories/${categoryId}/subcategories`,
   );
-  return response.data.data || [];
+  return response || [];
 };
 
 const Subcategories = () => {
@@ -69,11 +67,6 @@ const Subcategories = () => {
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
-
-  // Memoized user ID retrieval
-  const userId = useMemo(() => {
-    return Number(sessionStorage.getItem('userId')) || null;
-  }, []);
 
   // Fetch Category
   const { data: category } = useQuery({
@@ -121,17 +114,14 @@ const Subcategories = () => {
     if (!templateUrl) return;
 
     try {
-      const response = await axios.post(
-        `http://localhost:3000/subcategories/${subcategoryId}/templates`,
+      const response = await httpClient.post(
+        `/subcategories/${subcategoryId}/templates`,
         { userId },
-        {
-          headers: {
-            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-          },
-        },
       );
-      console.log('API Response:', response.data);
-      setTemplatesData(response.data.data || []);
+      // setTemplatesData(response || []);
+      const templates = Array.isArray(response) ? response : [];
+    
+    setTemplatesData(templates);
       setSelectedSubcategory(subcategoryName);
       setIsModalOpen(true);
     } catch (error) {
@@ -146,19 +136,11 @@ const Subcategories = () => {
       userId: number;
       categoryId: number;
     }) => {
-      return axios.post(
-        `http://localhost:3000/subcategories`,
-        {
-          userId: newSubcategory?.userId,
-          categoryId: categoryId,
-          name: newSubcategory?.name,
-        },
-        {
-          headers: {
-            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-          },
-        },
-      );
+      return httpClient.post(`/subcategories`, {
+        userId: newSubcategory?.userId,
+        categoryId: categoryId,
+        name: newSubcategory?.name,
+      });
     },
     onSuccess: (newSubcategory) => {
       queryClient.setQueryData(['subcategories'], (oldData: any) => {
@@ -189,21 +171,16 @@ const Subcategories = () => {
         return;
       }
 
-      const response = await axios.put(
-        `http://localhost:3000/subcategories/`, // Pass subcategoryId in URL
+      const response = await httpClient.put(
+        `/subcategories/`, // Pass subcategoryId in URL
         {
           id: subcategoryId,
           name: name,
           userId: userId,
         },
-        {
-          headers: {
-            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-          },
-        },
       );
 
-      return response.data; // Ensure response includes userId
+      return response; // Ensure response includes userId
     },
     onSuccess: (updatedSubcategory) => {
       queryClient.setQueryData(
@@ -228,15 +205,8 @@ const Subcategories = () => {
   // Mutation for deleting a subcategory
   const deleteSubcategoryMutation = useMutation({
     mutationFn: async (subcategoryId: number) => {
-      await axios.delete(
-        `http://localhost:3000/subcategories/${subcategoryId}`,
-        {
-          headers: {
-            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
-          },
-        },
-      );
-    },
+    await httpClient.delete(`/subcategories/${subcategoryId}`);
+  },
     onSuccess: (_, subcategoryId) => {
       queryClient.setQueryData(
         ['subcategories', categoryId],
