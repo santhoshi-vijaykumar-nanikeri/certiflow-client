@@ -1,28 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-} from '@tanstack/react-table';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  IconButton,
-  Modal,
-  Button,
-  Box,
-  Typography,
-} from '@mui/material';
+import { IconButton, Modal, Button, Box, Typography } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useSnackbar } from 'src/components/SnackbarContext';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
+import CustomTable from 'src/components/Table';
 
 const userId = getUserId();
 
@@ -119,13 +102,6 @@ const UserTemplates = () => {
     [],
   );
 
-  // React Table setup
-  const table = useReactTable({
-    data: templates,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
-
   return (
     <>
       {!userId && (
@@ -139,45 +115,7 @@ const UserTemplates = () => {
 
       {/* Table */}
       {templates.length > 0 ? (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                {table.getHeaderGroups().map((headerGroup) =>
-                  headerGroup.headers.map((header) => (
-                    <TableCell
-                      key={header.id}
-                      sx={{
-                        backgroundColor: '#1976D2',
-                        color: 'white',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                    </TableCell>
-                  )),
-                )}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <CustomTable columns={columns} data={templates} />
       ) : (
         <p>No templates found.</p>
       )}

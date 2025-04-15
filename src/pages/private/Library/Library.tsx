@@ -1,24 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-} from '@tanstack/react-table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'src/components/SnackbarContext';
 import {
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
   IconButton,
   Modal,
   Box,
   Button,
   TextField,
   Typography,
-  TableContainer,
   Paper,
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircle';
@@ -26,6 +15,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
+import CustomTable from 'src/components/Table';
 
 const userId = Number(getUserId());
 
@@ -159,12 +149,6 @@ const Library = () => {
       ),
     },
   ];
-
-  const table = useReactTable({
-    data: fieldNames,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
   useEffect(() => {
     refetch(); // ✅ Fetch data when the component mounts
   }, []);
@@ -201,41 +185,7 @@ const Library = () => {
           {isLoading ? (
             <Typography>Loading field names...</Typography>
           ) : (
-            <TableContainer
-              component={Paper}
-              sx={{ maxHeight: 400, overflow: 'auto' }}
-            >
-              <Table>
-                <TableHead sx={{ backgroundColor: '#1976d2' }}>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableCell key={header.id} sx={{ color: 'white' }}>
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHead>
-                <TableBody>
-                  {table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <CustomTable columns={columns} data={fieldNames} />
           )}
         </Paper>
       )}

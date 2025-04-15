@@ -7,13 +7,7 @@ import {
   MenuItem,
   TextField,
   Button,
-  TableContainer,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   IconButton,
   Typography,
   Modal,
@@ -25,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
 import useGetCategories from 'src/hooks/apis';
+import CustomTable from 'src/components/Table';
 
 const userId = getUserId();
 
@@ -187,6 +182,68 @@ const ComposeTemplate: React.FC = () => {
     navigate(`/home/templates/${id}`);
   };
 
+    // Define table columns
+  const columns = [
+    {
+      header: 'S.No.',
+      accessorKey: 'serialNumber',  // This is for the serial number column
+    },
+    {
+      header: 'Template',
+      accessorKey: 'name',
+    },
+    {
+      header: 'Created by',
+      accessorKey: 'createdBy',
+    },
+    {
+      header: 'Created on',
+      accessorKey: 'createdOn',
+      cell: (info: any) => new Date(info.getValue()).toLocaleDateString(),  // Format the date
+    },
+    {
+      header: 'Actions',
+      accessorKey: 'actions',
+      cell: (info: any) => (
+        <Box display="flex" justifyContent="space-between">
+          <IconButton
+            onClick={() => {
+              setEditTemplate({
+                id: info.row.original.id,
+                userId: info.row.original.userId,
+                name: info.row.original.name,
+              });
+              setOpenEditModal(true);
+            }}
+          >
+            <EditIcon color="primary" />
+          </IconButton>
+          <IconButton
+            onClick={() => {
+              setDeleteId(info.row.original.id);
+              setOpenDeleteModal(true);
+            }}
+          >
+            <DeleteIcon color="error" />
+          </IconButton>
+        </Box>
+      ),
+    },
+    {
+      header: 'Compose',
+      accessorKey: 'compose',
+      cell: (info: any) => (
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => handleComposeClick(info.row.original.id)}
+        >
+          COMPOSE
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <>
       <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mt: 2 }}>
@@ -273,93 +330,26 @@ const ComposeTemplate: React.FC = () => {
 
       {/* ✅ Table to Display Subcategory Types */}
       {fetchTypes && (
-        <Paper sx={{ padding: 2, mt: 2 }}>
-          <Box display="flex" justifyContent="flex-end" mb={2}>
-            <IconButton color="primary" onClick={() => setOpenAddModal(true)}>
-              <AddCircleOutlineIcon fontSize="large" />
-            </IconButton>
-          </Box>
-          <TableContainer
-            component={Paper}
-            sx={{ maxHeight: 400, overflow: 'auto' }}
-          >
-            <Table sx={{ mt: 3 }}>
-              <TableHead>
-                <TableRow sx={{ backgroundColor: '#1976d2' }}>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
-                    S.No.
-                  </TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
-                    Template
-                  </TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
-                    Created by
-                  </TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
-                    Created on
-                  </TableCell>
-                  <TableCell sx={{ color: 'white' }}>Actions</TableCell>
-                  <TableCell sx={{ color: 'white' }}>Compose</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {templatesData.length > 0 ? (
-                  templatesData.map((template, index) => (
-                    <TableRow key={template.id}>
-                      <TableCell>{index + 1}</TableCell>{' '}
-                      {/* Display Serial Number */}
-                      <TableCell>{template.name}</TableCell>
-                      <TableCell>{template.createdBy}</TableCell>
-                      <TableCell>
-                        {new Date(template.createdOn).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <IconButton
-                          onClick={() => {
-                            setEditTemplate({
-                              id: template.id,
-                              userId: template.userId, // Ensure userId is stored
-                              name: template.name,
-                            });
-                            setOpenEditModal(true);
-                          }}
-                        >
-                          <EditIcon color="primary" />
-                        </IconButton>
-                        {/* Table with delete button */}
-                        <IconButton
-                          onClick={() => {
-                            setDeleteId(template.id);
-                            setOpenDeleteModal(true);
-                          }}
-                        >
-                          <DeleteIcon color="error" />
-                        </IconButton>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          onClick={() => handleComposeClick(template.id)}
-                        >
-                          COMPOSE
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center">
-                      No Records Found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-      )}
+  <Paper sx={{ padding: 2, mt: 2 }}>
+    <Box display="flex" justifyContent="flex-end" mb={2}>
+      <IconButton color="primary" onClick={() => setOpenAddModal(true)}>
+        <AddCircleOutlineIcon fontSize="large" />
+      </IconButton>
+    </Box>
 
+    <CustomTable
+      data={templatesData.map((template, index) => ({
+        serialNumber: index + 1,  // Add serial number dynamically
+        name: template.name,
+        createdBy: template.createdBy,
+        createdOn: template.createdOn,
+        id: template.id,
+        userId: template.userId,
+      }))}
+      columns={columns}
+    />
+  </Paper>
+)}
       {/* Add Template Modal */}
       <Modal open={openAddModal} onClose={() => setOpenAddModal(false)}>
         <Box

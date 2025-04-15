@@ -2,17 +2,6 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import React, { useState } from 'react';
 import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-} from '@tanstack/react-table';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Paper,
   Box,
   IconButton,
@@ -32,6 +21,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { useSnackbar } from 'src/components/SnackbarContext';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
+import CustomTable from 'src/components/Table';
 
 interface UserPayload {
   id?: number;
@@ -67,13 +57,15 @@ const Users = () => {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   // const [userCategories, setUserCategories] = useState([]);
 
-  const { control, handleSubmit, reset } = useForm<FormData>({ defaultValues: defaultFormValues });
+  const { control, handleSubmit, reset } = useForm<FormData>({
+    defaultValues: defaultFormValues,
+  });
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => await httpClient.get('/users'),
   });
- 
+
   const { data: userCategories = [] } = useQuery<any[], Error>({
     queryKey: ['userCategories'],
     queryFn: async () => {
@@ -83,7 +75,8 @@ const Users = () => {
   });
 
   const addUserMutation = useMutation({
-    mutationFn: async (newUser: UserPayload) => await httpClient.post('/users', newUser),
+    mutationFn: async (newUser: UserPayload) =>
+      await httpClient.post('/users', newUser),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       showSnackbar('User added successfully', 'success');
@@ -93,17 +86,22 @@ const Users = () => {
   });
 
   const editUserMutation = useMutation({
-    mutationFn: async (updatedUser: UserPayload) => await httpClient.put('/users', updatedUser),
+    mutationFn: async (updatedUser: UserPayload) =>
+      await httpClient.put('/users', updatedUser),
     onSuccess: (data: any) => {
-      if (data?.statusCode === 409) return showSnackbar('User exists!', 'error');
+      if (data?.statusCode === 409)
+        return showSnackbar('User exists!', 'error');
       queryClient.invalidateQueries({ queryKey: ['users'] });
       showSnackbar('User updated successfully', 'success');
       handleCloseEditModal();
     },
     onError: (error: any) => {
-      const errorMessage = error?.data?.message || error?.message || 'Something went wrong!';
+      const errorMessage =
+        error?.data?.message || error?.message || 'Something went wrong!';
       const statusCode = error?.status || error?.statusCode;
-      statusCode === 409 ? showSnackbar('User exists!', 'error') : showSnackbar(errorMessage, 'error');
+      statusCode === 409
+        ? showSnackbar('User exists!', 'error')
+        : showSnackbar(errorMessage, 'error');
     },
   });
 
@@ -182,20 +180,24 @@ const Users = () => {
       header: 'Actions',
       cell: ({ row }: any) => (
         <Box display="flex" gap={1}>
-          <IconButton onClick={() => handleOpenEditModal(row.original)} color="primary"><Edit /></IconButton>
+          <IconButton
+            onClick={() => handleOpenEditModal(row.original)}
+            color="primary"
+          >
+            <Edit />
+          </IconButton>
           {/* <IconButton color="error"><BlockIcon /></IconButton> */}
           {/* <IconButton color="primary"><LockOpenIcon /></IconButton> */}
-          <IconButton onClick={() => handleOpenDeleteModal(row.original.id)} color="error"><Delete /></IconButton>
+          <IconButton
+            onClick={() => handleOpenDeleteModal(row.original.id)}
+            color="error"
+          >
+            <Delete />
+          </IconButton>
         </Box>
       ),
     },
   ];
-
-  const table = useReactTable({
-    data: data || [],
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
 
   if (isLoading) return <p>Loading...</p>;
   if (error) return <p>Error: {(error as Error).message}</p>;
@@ -207,42 +209,8 @@ const Users = () => {
           <AddCircleOutlineIcon fontSize="large" />
         </IconButton>
       </Box>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              {table.getHeaderGroups().map((headerGroup) =>
-                headerGroup.headers.map((header) => (
-                  <TableCell
-                    key={header.id}
-                    sx={{
-                      backgroundColor: '#1976D2',
-                      color: 'white',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-                  </TableCell>
-                )),
-              )}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <CustomTable columns={columns} data={Users} />
+
       {/* Add User Modal */}
       <Modal open={openAddUserModal} onClose={handleCloseAddUserModal}>
         <Box
@@ -271,16 +239,16 @@ const Users = () => {
                 control={control}
                 render={({ field }) => (
                   <Select
-        {...field}
-        label="User Category"
-        value={field.value || ''}
-      >
-        {userCategories.map((category: any) => (
-          <MenuItem key={category.id} value={category.id}>
-            {category.name}
-          </MenuItem>
-        ))}
-      </Select>
+                    {...field}
+                    label="User Category"
+                    value={field.value || ''}
+                  >
+                    {userCategories.map((category: any) => (
+                      <MenuItem key={category.id} value={category.id}>
+                        {category.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
                 )}
               />
             </FormControl>
@@ -374,16 +342,16 @@ const Users = () => {
                     <Select
                       {...field}
                       onChange={(e) => field.onChange(Number(e.target.value))}
-                        label="User Category"
+                      label="User Category"
                     >
-                     <MenuItem value="" disabled>
-          Select User Category
-        </MenuItem>
-        {userCategories.map((category: any) => (
-          <MenuItem key={category.id} value={category.id}>
-            {category.name}
-          </MenuItem>
-             ))}
+                      <MenuItem value="" disabled>
+                        Select User Category
+                      </MenuItem>
+                      {userCategories.map((category: any) => (
+                        <MenuItem key={category.id} value={category.id}>
+                          {category.name}
+                        </MenuItem>
+                      ))}
                     </Select>
                   )}
                 />

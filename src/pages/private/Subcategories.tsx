@@ -1,16 +1,9 @@
-import React, {  useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import {
   Paper,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Modal,
   Box,
   Button,
@@ -18,23 +11,14 @@ import {
   IconButton,
   Stack,
 } from '@mui/material';
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-} from '@tanstack/react-table';
+import { ColumnDef } from '@tanstack/react-table';
 import ArrowCircleLeftIcon from '@mui/icons-material/ArrowCircleLeft';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircle';
 import { Delete, Edit } from '@mui/icons-material';
 import { useSnackbar } from 'src/components/SnackbarContext';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
-
-interface Subcategory {
-  id: string;
-  name: string;
-  categoryId: string;
-}
+import CustomTable from 'src/components/Table';
 
 const userId = Number(getUserId());
 
@@ -120,8 +104,8 @@ const Subcategories = () => {
       );
       // setTemplatesData(response || []);
       const templates = Array.isArray(response) ? response : [];
-    
-    setTemplatesData(templates);
+
+      setTemplatesData(templates);
       setSelectedSubcategory(subcategoryName);
       setIsModalOpen(true);
     } catch (error) {
@@ -205,8 +189,8 @@ const Subcategories = () => {
   // Mutation for deleting a subcategory
   const deleteSubcategoryMutation = useMutation({
     mutationFn: async (subcategoryId: number) => {
-    await httpClient.delete(`/subcategories/${subcategoryId}`);
-  },
+      await httpClient.delete(`/subcategories/${subcategoryId}`);
+    },
     onSuccess: (_, subcategoryId) => {
       queryClient.setQueryData(
         ['subcategories', categoryId],
@@ -290,7 +274,7 @@ const Subcategories = () => {
     }
   };
   // Define table columns
-  const columns = [
+  const columns: ColumnDef<any, any>[] = [
     {
       header: 'S.No.',
       cell: (info: { row: { index: number } }) => info.row.index + 1,
@@ -345,11 +329,24 @@ const Subcategories = () => {
     },
   ];
 
-  const table = useReactTable({
-    data: subcategories,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
+  const templateColumns: ColumnDef<any>[] = [
+    {
+      header: 'S.No.',
+      cell: ({ row }) => row.index + 1,
+    },
+    {
+      header: 'Template',
+      accessorKey: 'name',
+    },
+    {
+      header: 'Created By',
+      accessorKey: 'createdBy',
+    },
+    {
+      header: 'Created On',
+      cell: ({ row }) => new Date(row.original.createdOn).toLocaleDateString(),
+    },
+  ];
 
   return (
     <Paper sx={{ padding: 2 }}>
@@ -367,42 +364,7 @@ const Subcategories = () => {
       </Stack>
 
       {/* Table */}
-      <TableContainer component={Paper} sx={{ marginTop: 2 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              {table.getHeaderGroups().map((headerGroup) =>
-                headerGroup.headers.map((header) => (
-                  <TableCell
-                    key={header.id}
-                    sx={{
-                      backgroundColor: '#1976D2',
-                      color: 'white',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-                  </TableCell>
-                )),
-              )}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <CustomTable columns={columns} data={subcategories} />
 
       {/* Template Modal */}
       <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)}>
@@ -425,40 +387,7 @@ const Subcategories = () => {
             {selectedSubcategory || 'No Subcategory Selected'}
           </Typography>
 
-          <Table>
-            <TableHead>
-              <TableRow sx={{ backgroundColor: '#1976d2' }}>
-                {' '}
-                {/* Blue Header Row */}
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
-                  S.No.
-                </TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
-                  Template
-                </TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
-                  Created By
-                </TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
-                  Created On
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {templatesData.map((template, index) => (
-                <TableRow key={template.id}>
-                  <TableCell>{index + 1}</TableCell>
-                  {/* Display Serial Number */}
-
-                  <TableCell>{template.name}</TableCell>
-                  <TableCell>{template.createdBy}</TableCell>
-                  <TableCell>
-                    {new Date(template.createdOn).toLocaleDateString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <CustomTable columns={templateColumns} data={templatesData} />
           {/* Close Button */}
           <Box
             sx={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}

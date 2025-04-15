@@ -23,18 +23,18 @@ interface Props {
   columns: ColumnDef<any, any>[];
 }
 
-const CustomTable = (props?: Props) => {
-  const { data, columns } = props || {};
+const CustomTable: React.FC<Props> = ({ data, columns }) => {
 
   const table = useReactTable({
     data,
     columns: columns!,
     getCoreRowModel: getCoreRowModel(),
   });
+  if (!data || isEmpty(data)) {
+    return <div>Loading...</div>;
+  }
 
-  return isEmpty(data) ? (
-    <>Loading...</>
-  ) : (
+  return (
     <TableContainer component={Paper}>
       <Table>
         <TableHead>
