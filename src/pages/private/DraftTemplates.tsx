@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, {  useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { Info as InfoIcon } from '@mui/icons-material';
@@ -12,11 +12,12 @@ import {
   Tooltip,
 } from '@mui/material';
 import html2pdf from 'html2pdf.js';
-import { saveAs } from 'file-saver';
-import { asBlob } from 'html-docx-js-typescript';
-import { PictureAsPdf, Description } from '@mui/icons-material';
+import { PictureAsPdf } from '@mui/icons-material';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
+import useGetCategories from 'src/hooks/apis';
+import { useSelector } from 'react-redux';
+
 
 const userId = getUserId();
 
@@ -38,26 +39,7 @@ interface Template {
   userCategoryId: number;
 }
 // API Calls
-// Fetch Users
-const fetchUsers = async () => {
-  try {
-    const response = await httpClient.get('/users');
-    return response || [];
-  } catch (error) {
-    console.error('❌ Error fetching users:', error);
-    return [];
-  }
-};
-// Fetch Categories
-const fetchCategories = async () => {
-  try {
-    const response = await httpClient.get('/categories');
-    return response || [];
-  } catch (error) {
-    console.error('❌ Error fetching categories:', error);
-    return [];
-  }
-};
+
 // Fetch Subcategories
 const fetchSubcategories = async (
   categoryId: string,
@@ -81,12 +63,14 @@ const fetchTemplates = async (
 ): Promise<Template[]> => {
   if (!subcategoryId || !userId || !userCategoryId) return [];
   try {
+    const payload = {
+      userId,
+      userCategoryId,
+    };
+
     const response = await httpClient.post(
       `/subcategories/${subcategoryId}/templates`,
-      {
-        userId,
-        userCategoryId,
-      },
+      payload,
     );
     return response || [];
   } catch (error) {
@@ -98,7 +82,6 @@ const fetchTemplates = async (
 const fetchTemplateFields = async (templateId: string) => {
   try {
     const response = await httpClient.get(`/templates/${templateId}/fields`);
-
 
     return (
       response.map((field: any) => ({
@@ -155,23 +138,19 @@ const DraftTemplates: React.FC = () => {
       setPreviewHtml(templateText); // Render it directly
     }
   };
-  const { data: users = [] } = useQuery({
-    queryKey: ['users'],
-    queryFn: fetchUsers,
-  });
-  const userCategoryId = useMemo(
-    () => (users.length > 0 ? users[0].userCategoryId : 0),
-    [users],
+  //userCategoryId from Redux store
+  const userCategoryId = useSelector(
+    (state: any) => state.user.userDetails?.userCategoryId ?? 0
   );
-
+   
+console.log("userCategoryId", userCategoryId);
   const selectedCategory = watch('category', '');
   const selectedSubcategory = watch('subcategory', '');
   const selectedTemplate = watch('template', '');
 
-  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
-    queryKey: ['categories'],
-    queryFn: fetchCategories,
-  });
+  const { data: categories = [], isLoading: categoriesLoading } =
+    useGetCategories();
+
   const { data: subcategories = [], isLoading: subcategoriesLoading } =
     useQuery({
       queryKey: ['subcategories', selectedCategory],
@@ -197,48 +176,7 @@ const DraftTemplates: React.FC = () => {
       html2pdf().from(element).save('Certificate.pdf');
     }
   };
-
-  // Function to download as Word (.docx)
-
-  const handleDownloadWord = async () => {
-    const contentElement = document.getElementById('certificate-preview');
-    if (!contentElement) return;
-
-    const content = contentElement.innerHTML;
-
-    // Ensure Word-compatible structure
-    const htmlContent = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office"
-          xmlns:w="urn:schemas-microsoft-com:office:word"
-          xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="utf-8">
-        <title>Certificate</title>
-        <style>
-          body { font-family: Arial, sans-serif; font-size: 14px; }
-        </style>
-      </head>
-      <body>
-        <div>${content}</div>
-      </body>
-    </html>`;
-
-    try {
-      let converted = await asBlob(htmlContent);
-
-      // 🔹 Convert Buffer to Blob if necessary
-      if (!(converted instanceof Blob)) {
-        converted = new Blob([converted], {
-          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        });
-      }
-
-      console.log('✅ Final Blob Ready:', converted);
-      saveAs(converted, 'Certificate.docx');
-    } catch (error) {
-      console.error('❌ Error generating Word document:', error);
-    }
-  };
+ 
   return (
     <Box
       sx={{
@@ -432,9 +370,6 @@ const DraftTemplates: React.FC = () => {
           {/* Icons for PDF and Word download */}
           {previewHtml && (
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-              <IconButton onClick={handleDownloadWord} color="primary">
-                <Description />
-              </IconButton>
               <IconButton onClick={handleDownloadPDF} color="error">
                 <PictureAsPdf />
               </IconButton>

@@ -26,10 +26,10 @@ import {
   InputLabel,
 } from '@mui/material';
 import { Delete, Edit } from '@mui/icons-material';
-import BlockIcon from '@mui/icons-material/Block';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
+// import BlockIcon from '@mui/icons-material/Block';
+// import LockOpenIcon from '@mui/icons-material/LockOpen';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import { useSnackbar } from 'src/Components/SnackbarContext';
+import { useSnackbar } from 'src/components/SnackbarContext';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
 
@@ -65,12 +65,21 @@ const Users = () => {
   const [openEditUserModal, setOpenEditUserModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  // const [userCategories, setUserCategories] = useState([]);
 
   const { control, handleSubmit, reset } = useForm<FormData>({ defaultValues: defaultFormValues });
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => await httpClient.get('/users'),
+  });
+ 
+  const { data: userCategories = [] } = useQuery<any[], Error>({
+    queryKey: ['userCategories'],
+    queryFn: async () => {
+      const res = await httpClient.get('/users/userCategories');
+      return res;
+    },
   });
 
   const addUserMutation = useMutation({
@@ -174,8 +183,8 @@ const Users = () => {
       cell: ({ row }: any) => (
         <Box display="flex" gap={1}>
           <IconButton onClick={() => handleOpenEditModal(row.original)} color="primary"><Edit /></IconButton>
-          <IconButton color="error"><BlockIcon /></IconButton>
-          <IconButton color="primary"><LockOpenIcon /></IconButton>
+          {/* <IconButton color="error"><BlockIcon /></IconButton> */}
+          {/* <IconButton color="primary"><LockOpenIcon /></IconButton> */}
           <IconButton onClick={() => handleOpenDeleteModal(row.original.id)} color="error"><Delete /></IconButton>
         </Box>
       ),
@@ -262,17 +271,16 @@ const Users = () => {
                 control={control}
                 render={({ field }) => (
                   <Select
-                    {...field}
-                    value={field.value || 1} // Ensure default value is 1
-                    onChange={(e) => field.onChange(Number(e.target.value))} // Convert to number
-                  >
-                    <MenuItem value={1} disabled>
-                      User Category
-                    </MenuItem>{' '}
-                    {/* Default but disabled */}
-                    <MenuItem value={2}>Admin</MenuItem>
-                    <MenuItem value={3}>Employee</MenuItem>
-                  </Select>
+        {...field}
+        label="User Category"
+        value={field.value || ''}
+      >
+        {userCategories.map((category: any) => (
+          <MenuItem key={category.id} value={category.id}>
+            {category.name}
+          </MenuItem>
+        ))}
+      </Select>
                 )}
               />
             </FormControl>
@@ -366,12 +374,16 @@ const Users = () => {
                     <Select
                       {...field}
                       onChange={(e) => field.onChange(Number(e.target.value))}
+                        label="User Category"
                     >
-                      <MenuItem value={1} disabled>
-                        User Category
-                      </MenuItem>
-                      <MenuItem value={2}>Admin</MenuItem>
-                      <MenuItem value={3}>Employee</MenuItem>
+                     <MenuItem value="" disabled>
+          Select User Category
+        </MenuItem>
+        {userCategories.map((category: any) => (
+          <MenuItem key={category.id} value={category.id}>
+            {category.name}
+          </MenuItem>
+             ))}
                     </Select>
                   )}
                 />

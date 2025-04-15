@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, {useEffect} from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -18,7 +18,7 @@ import DraftTemplates from './pages/private/DraftTemplates';
 import ComposeTemplates from './pages/private/ComposeTemplates';
 import Subcategories from './pages/private/Subcategories';
 import TemplateDetails from './pages/private/TemplateDetails';
-import { SnackbarProvider } from './Components/SnackbarContext';
+import { SnackbarProvider } from './components/SnackbarContext';
 import ResetPassword from './pages/public/ResetPassword';
 import { useDispatch } from 'react-redux';
 import { setUserDetails } from 'src/store/slices/userSlice';
@@ -42,8 +42,10 @@ const App = () => {
             <Routes>
               {/* Public Route */}
               <Route path="/" element={<Login />} />
-              <Route path="/users/changeDefaultPassword" element={<ResetPassword />} />
-
+              <Route
+                path="/users/changeDefaultPassword"
+                element={<ResetPassword />}
+              />
 
               {/* Private Routes with Context-based protection */}
               <Route element={<PrivateRouteWrapper />}>

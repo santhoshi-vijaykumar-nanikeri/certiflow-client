@@ -5,7 +5,7 @@ import {
   flexRender,
 } from '@tanstack/react-table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSnackbar } from 'src/Components/SnackbarContext';
+import { useSnackbar } from 'src/components/SnackbarContext';
 import {
   Table,
   TableHead,

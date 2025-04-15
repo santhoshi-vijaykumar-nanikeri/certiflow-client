@@ -1,17 +1,7 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-} from '@tanstack/react-table';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Paper,
   Box,
   IconButton,
@@ -23,9 +13,12 @@ import {
 import { Delete, Edit } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import { useSnackbar } from 'src/Components/SnackbarContext';
+import { useSnackbar } from 'src/components/SnackbarContext';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
+import { isEmpty } from 'lodash';
+import CustomTable from 'src/components/Table';
+import useGetCategories from 'src/hooks/apis';
 
 // Type Definitions
 interface Category {
@@ -37,12 +30,7 @@ interface Category {
   createdOn?: string;
 }
 
-
 // Fetch Categories
-const fetchCategories = async () => {
-  const response = await httpClient.get('/categories');
-  return response; // Ensure correct extraction
-};
 
 const Categories = () => {
   const userId = getUserId();
@@ -51,14 +39,7 @@ const Categories = () => {
   const { showSnackbar } = useSnackbar();
 
   // Fetch categories using React Query
-  const {
-    data: categories = [],
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ['categories'],
-    queryFn: fetchCategories,
-  });
+  const { data: categories = [], isLoading, isError } = useGetCategories();
 
   // State Management for Modals
   const [open, setOpen] = useState(false);
@@ -75,7 +56,6 @@ const Categories = () => {
     setCategoryName(''); // Reset field when closing modal
   };
 
- 
   const handleOpenDeleteModal = (id: string) => {
     setDeleteId(id);
     setOpenDeleteModal(true);
@@ -85,7 +65,6 @@ const Categories = () => {
     setDeleteId(null);
     setOpenDeleteModal(false);
   };
-
 
   // Add Category Mutation
   const addCategoryMutation = useMutation({
@@ -103,6 +82,8 @@ const Categories = () => {
     onSuccess: (newCategory) => {
       queryClient.setQueryData(['categories'], (oldData: any) => {
         if (!oldData) return [];
+        if (isEmpty(newCategory)) return oldData;
+
         return [...oldData, newCategory]; // Add new category optimistically
       });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -190,7 +171,6 @@ const Categories = () => {
     setEditCategory(null); // Reset the editCategory state when closing the modal
   };
 
-
   // Handle Deleting a Category
   const handleConfirmDelete = () => {
     if (deleteId) {
@@ -211,7 +191,6 @@ const Categories = () => {
     {
       accessorKey: 'name',
       header: 'Category Name',
-      
     },
     {
       accessorKey: 'subcategories',
@@ -239,13 +218,12 @@ const Categories = () => {
     {
       header: 'Actions',
       cell: ({ row }: { row: any }) => (
-        
         <div style={{ display: 'flex', gap: '8px' }}>
           <Edit
-          
-            onClick={() =>{
+            onClick={() => {
               console.log('row.original on Edit click:', row?.original);
-              handleEdit(row?.original)}}
+              handleEdit(row?.original);
+            }}
             sx={{ cursor: 'pointer', color: 'black' }}
           />
           <Delete
@@ -258,11 +236,6 @@ const Categories = () => {
   ];
 
   // Initialize TanStack Table
-  const table = useReactTable({
-    data: categories,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
 
   if (isLoading) return <p>Loading categories...</p>;
   if (isError) return <p>Error fetching categories.</p>;
@@ -276,42 +249,9 @@ const Categories = () => {
         </IconButton>
       </Box>
       {/* Categories Table */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              {table.getHeaderGroups().map((headerGroup) =>
-                headerGroup.headers.map((header) => (
-                  <TableCell
-                    key={header.id}
-                    sx={{
-                      backgroundColor: '#1976D2',
-                      color: 'white',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-                  </TableCell>
-                )),
-              )}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {table.getRowModel().rows?.map((row) => (
-              <TableRow key={row?.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      {!isEmpty(categories) && (
+        <CustomTable columns={columns} data={categories} />
+      )}
 
       {/* Add Category Modal */}
       <Modal open={open} onClose={handleClose}>

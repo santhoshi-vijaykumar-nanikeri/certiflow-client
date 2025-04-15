@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
-import { useSnackbar } from 'src/Components/SnackbarContext';
+import { useSnackbar } from 'src/components/SnackbarContext';
 import {
   Box,
   MenuItem,
@@ -24,6 +24,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircle';
 import { useNavigate } from 'react-router-dom';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
+import useGetCategories from 'src/hooks/apis';
 
 const userId = getUserId();
 
@@ -47,11 +48,6 @@ interface Template {
 }
 
 type TemplateType = { id: number; userId: number; name: string };
-
-// Fetch all categories
-const fetchCategories = async (): Promise<Category[]> => {
-  return await httpClient.get('/categories');
-};
 
 // Fetch subcategories for a given category
 const fetchSubcategories = async (
@@ -120,10 +116,8 @@ const ComposeTemplate: React.FC = () => {
   const navigate = useNavigate();
 
   // 🔹 Fetch Categories
-  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
-    queryKey: ['categories'],
-    queryFn: fetchCategories,
-  });
+  const { data: categories = [], isLoading: categoriesLoading } =
+    useGetCategories();
 
   // 🔹 Fetch Subcategories (only when category is selected)
   const { data: subcategories = [], isLoading: subcategoriesLoading } =

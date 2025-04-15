@@ -26,7 +26,7 @@ import {
 import ArrowCircleLeftIcon from '@mui/icons-material/ArrowCircleLeft';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircle';
 import { Delete, Edit } from '@mui/icons-material';
-import { useSnackbar } from 'src/Components/SnackbarContext';
+import { useSnackbar } from 'src/components/SnackbarContext';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
 
