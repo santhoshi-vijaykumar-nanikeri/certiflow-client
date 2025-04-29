@@ -15,11 +15,12 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircle';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
 import useGetCategories from 'src/hooks/apis';
 import CustomTable from 'src/components/Table';
+import useGetSubCategories from 'src/hooks/apis/subCategories/useGetSubCategories';
 
 const userId = getUserId();
 
@@ -44,23 +45,16 @@ interface Template {
 
 type TemplateType = { id: number; userId: number; name: string };
 
-// Fetch subcategories for a given category
-const fetchSubcategories = async (
-  categoryId: string,
-): Promise<Subcategory[]> => {
-  if (!categoryId) return [];
-  return await httpClient.get(`/categories/${categoryId}/subcategories`);
-};
-
 // Fetch templates for a subcategory
 const fetchSubcategoryTemplate = async (
   subcategoryId: string,
   userId: string | null,
 ): Promise<Template[]> => {
   if (!subcategoryId || !userId) return [];
-  return await httpClient.post(`/subcategories/${subcategoryId}/templates`, {
+  const response =  await httpClient.post(`/subcategories/${subcategoryId}/templates`, {
     userId,
   });
+  return response.data;
 };
 
 // Add a new template
@@ -91,6 +85,7 @@ const deleteTemplate = async (templateId: number) => {
 
 // 🔹 Main Component
 const ComposeTemplate: React.FC = () => {
+
   // Form handling
   const { control, watch, setValue } = useForm();
   const { showSnackbar } = useSnackbar();
@@ -114,13 +109,10 @@ const ComposeTemplate: React.FC = () => {
   const { data: categories = [], isLoading: categoriesLoading } =
     useGetCategories();
 
-  // 🔹 Fetch Subcategories (only when category is selected)
-  const { data: subcategories = [], isLoading: subcategoriesLoading } =
-    useQuery({
-      queryKey: ['subcategories', selectedCategory],
-      queryFn: () => fetchSubcategories(selectedCategory),
-      enabled: !!selectedCategory, // Runs only when a category is selected
-    });
+  const categoryId = watch('category');
+
+  // Fetch subcategories
+const { data: subcategories = [], isLoading: subcategoriesLoading, } = useGetSubCategories(categoryId);
 
   // Fetch templates when "GET" button is clicked
   const { data: templates = [], refetch } = useQuery<Template[]>({
@@ -129,10 +121,16 @@ const ComposeTemplate: React.FC = () => {
     enabled: false, // ✅ Initially disabled, refetch manually
   });
 
-  // Sync template data when fetched
   React.useEffect(() => {
-    if (templates.length > 0) {
-      setTemplatesData(templates);
+    if (Array.isArray(templates) && templates.length > 0) {
+      setTemplatesData(prev => {
+        // Only update if data is actually different
+        if (JSON.stringify(prev) !== JSON.stringify(templates)) {
+          return templates;
+        }
+        console.log("Skipping update (same data)");
+        return prev;
+      });
     }
   }, [templates]);
 
@@ -186,15 +184,21 @@ const ComposeTemplate: React.FC = () => {
   const columns = [
     {
       header: 'S.No.',
-      accessorKey: 'serialNumber',  // This is for the serial number column
+      accessorKey: 'serialNumber',
+      cell: (info:any) => info.getValue(),
+      // This is for the serial number column
     },
     {
       header: 'Template',
       accessorKey: 'name',
+      cell: (info:any) => info.getValue(),
+
     },
     {
       header: 'Created by',
       accessorKey: 'createdBy',
+      cell: (info:any) => info.getValue(),
+
     },
     {
       header: 'Created on',
@@ -321,6 +325,7 @@ const ComposeTemplate: React.FC = () => {
           disabled={!selectedSubcategory}
           onClick={() => {
             setFetchTypes(true);
+            console.log("Fetching templates...");
             refetch(); // ✅ Manually trigger data fetching
           }}
         >
@@ -336,8 +341,8 @@ const ComposeTemplate: React.FC = () => {
         <AddCircleOutlineIcon fontSize="large" />
       </IconButton>
     </Box>
-
     <CustomTable
+    
       data={templatesData.map((template, index) => ({
         serialNumber: index + 1,  // Add serial number dynamically
         name: template.name,

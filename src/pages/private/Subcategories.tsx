@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {  useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Paper,
   Typography,
@@ -19,24 +19,11 @@ import { useSnackbar } from 'src/components/SnackbarContext';
 import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
 import CustomTable from 'src/components/Table';
+import useGetSubCategories from "src/hooks/apis/subCategories/useGetSubCategories"
+import useGetCategoryDetails from 'src/hooks/apis/CategoryDetails/useGetCategoryDetails';
 
 const userId = Number(getUserId());
 
-// Fetch category details
-const fetchCategoryDetails = async (categoryId: string | undefined) => {
-  if (!categoryId) return null;
-  const response = await httpClient.get(`/categories/${categoryId}`);
-  return response?.length > 0 ? response[0] : null;
-};
-
-// Fetch subcategories
-const fetchSubcategories = async (categoryId: string | undefined) => {
-  if (!categoryId) return [];
-  const response = await httpClient.get(
-    `/categories/${categoryId}/subcategories`,
-  );
-  return response || [];
-};
 
 const Subcategories = () => {
   const { categoryId } = useParams();
@@ -52,12 +39,11 @@ const Subcategories = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
 
-  // Fetch Category
-  const { data: category } = useQuery({
-    queryKey: ['category', categoryId],
-    queryFn: () => fetchCategoryDetails(categoryId),
-    enabled: !!categoryId,
-  });
+  // Fetch subcategories
+const { data: subcategories = [] } = useGetSubCategories(categoryId);
+
+// Fetch categoryId
+const { data: category} = useGetCategoryDetails(categoryId);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editingSubcategory, setEditingSubcategory] = useState<{
@@ -82,13 +68,6 @@ const Subcategories = () => {
     setUpdatedName('');
   };
 
-  // Fetch Subcategories
-  const { data: subcategories = [] } = useQuery({
-    queryKey: ['subcategories', categoryId],
-    queryFn: () => fetchSubcategories(categoryId),
-    enabled: !!category,
-  });
-
   // Fetch Templates when clicking on a subcategory
   const handleTemplateClick = async (
     subcategoryId: string,
@@ -103,7 +82,7 @@ const Subcategories = () => {
         { userId },
       );
       // setTemplatesData(response || []);
-      const templates = Array.isArray(response) ? response : [];
+      const templates = Array.isArray(response.data) ? response.data : [];
 
       setTemplatesData(templates);
       setSelectedSubcategory(subcategoryName);
@@ -280,7 +259,6 @@ const Subcategories = () => {
       cell: (info: { row: { index: number } }) => info.row.index + 1,
     },
     { accessorKey: 'name', header: 'Subcategory' },
-    { accessorKey: 'types', header: 'Types' },
     {
       accessorKey: 'templates',
       header: 'Templates',

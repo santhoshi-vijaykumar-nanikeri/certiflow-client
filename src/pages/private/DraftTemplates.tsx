@@ -17,7 +17,7 @@ import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
 import useGetCategories from 'src/hooks/apis';
 import { useSelector } from 'react-redux';
-
+import useGetSubCategories from 'src/hooks/apis/subCategories/useGetSubCategories';
 
 const userId = getUserId();
 
@@ -26,12 +26,6 @@ interface Category {
   id: string;
   name: string;
 }
-
-interface Subcategory {
-  id: string;
-  name: string;
-}
-
 interface Template {
   id: string;
   name: string;
@@ -40,21 +34,6 @@ interface Template {
 }
 // API Calls
 
-// Fetch Subcategories
-const fetchSubcategories = async (
-  categoryId: string,
-): Promise<Subcategory[]> => {
-  if (!categoryId) return [];
-  try {
-    const response = await httpClient.get(
-      `/categories/${categoryId}/subcategories`,
-    );
-    return response || [];
-  } catch (error) {
-    console.error('❌ Error fetching subcategories:', error);
-    return [];
-  }
-};
 // Fetch Templates
 const fetchTemplates = async (
   subcategoryId: string,
@@ -72,7 +51,7 @@ const fetchTemplates = async (
       `/subcategories/${subcategoryId}/templates`,
       payload,
     );
-    return response || [];
+    return response.data || [];
   } catch (error) {
     console.error('❌ Error fetching templates:', error);
     return [];
@@ -142,21 +121,19 @@ const DraftTemplates: React.FC = () => {
   const userCategoryId = useSelector(
     (state: any) => state.user.userDetails?.userCategoryId ?? 0
   );
-   
-console.log("userCategoryId", userCategoryId);
-  const selectedCategory = watch('category', '');
+     const selectedCategory = watch('category', '');
   const selectedSubcategory = watch('subcategory', '');
   const selectedTemplate = watch('template', '');
 
+//Fetch Categories
   const { data: categories = [], isLoading: categoriesLoading } =
     useGetCategories();
 
-  const { data: subcategories = [], isLoading: subcategoriesLoading } =
-    useQuery({
-      queryKey: ['subcategories', selectedCategory],
-      queryFn: () => fetchSubcategories(selectedCategory),
-      enabled: !!selectedCategory,
-    });
+    const categoryId = watch('category');
+
+  // Fetch subcategories
+const { data: subcategories = [], isLoading: subcategoriesLoading, } = useGetSubCategories(categoryId);
+
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
     queryKey: ['templates', selectedSubcategory, userId, userCategoryId],
     queryFn: () =>
@@ -239,7 +216,7 @@ console.log("userCategoryId", userCategoryId);
                 setTemplateFields([]);
               }}
             >
-              {subcategories.map((subcategory) => (
+              {subcategories.map((subcategory:any) => (
                 <MenuItem key={subcategory.id} value={subcategory.id}>
                   {subcategory.name}
                 </MenuItem>

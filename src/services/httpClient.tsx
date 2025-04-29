@@ -25,7 +25,7 @@ export const httpClient = {
 
   post: async (endpoint: string, data: any) => {
     const response = await apiClient.post(endpoint, data);
-    return response.data.data;
+    return response.data;
   },
 
   put: async (endpoint: string, data: any) => {

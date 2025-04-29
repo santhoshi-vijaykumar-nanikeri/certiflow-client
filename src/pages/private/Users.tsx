@@ -209,7 +209,7 @@ const Users = () => {
           <AddCircleOutlineIcon fontSize="large" />
         </IconButton>
       </Box>
-      <CustomTable columns={columns} data={Users} />
+      <CustomTable columns={columns} data={data || []} />
 
       {/* Add User Modal */}
       <Modal open={openAddUserModal} onClose={handleCloseAddUserModal}>
