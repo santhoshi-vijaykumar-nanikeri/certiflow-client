@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios, { AxiosError } from 'axios';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import {
   AppBar,
   Toolbar,
@@ -22,14 +22,17 @@ import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
 import { usePrivateRouter } from 'src/context/PrivateRouterContext';
 import { logoutUser } from 'src/utils/logout';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 const AppBarComponent = () => {
+  const userCategoryId = useSelector((state: any) => state.user.userCategoryId);
+
+  const isRestricted = [2, 3].includes(userCategoryId);
+
   const dispatch = useDispatch();
   const { setAuthStatus } = usePrivateRouter();
   const userId = Number(getUserId());
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   // State management
   const [profileOpen, setProfileOpen] = useState(false);
@@ -135,22 +138,30 @@ const AppBarComponent = () => {
           </Typography>
 
           {/* Navigation Links */}
+          {/* Navigation Links */}
           <Box sx={{ display: 'flex', gap: 3 }}>
-            <MenuItem onClick={() => navigate('/home/categories/view-all')}>
-              Categories
-            </MenuItem>
+            {!isRestricted && (
+              <MenuItem onClick={() => navigate('/home/categories/view-all')}>
+                Categories
+              </MenuItem>
+            )}
+
             <MenuItem onClick={() => navigate('/home/library')}>
               Library
             </MenuItem>
+
             <MenuItem onClick={() => navigate('/home/templates/view-all')}>
               Compose Templates
             </MenuItem>
+
             <MenuItem onClick={() => navigate('/home/draft-templates')}>
               Draft Templates
             </MenuItem>
+
             <MenuItem onClick={() => navigate('/home/user-templates/view-all')}>
               User Templates
             </MenuItem>
+
             <MenuItem onClick={() => navigate('/home/users')}>Users</MenuItem>
           </Box>
 

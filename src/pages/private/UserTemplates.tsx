@@ -7,7 +7,6 @@ import { httpClient } from 'src/services/httpClient';
 import { getUserId } from 'src/utils/helpers';
 import CustomTable from 'src/components/Table';
 
-const userId = getUserId();
 
 // Fetch templates API function
 const fetchUserTemplates = async (userId: string) => {
@@ -22,6 +21,7 @@ const fetchUserTemplates = async (userId: string) => {
 };
 
 const UserTemplates = () => {
+  const userId = getUserId();
   const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
 

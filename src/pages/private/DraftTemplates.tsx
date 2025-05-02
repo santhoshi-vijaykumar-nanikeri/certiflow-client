@@ -19,6 +19,7 @@ import useGetCategories from 'src/hooks/apis';
 import { useSelector } from 'react-redux';
 import useGetSubCategories from 'src/hooks/apis/subCategories/useGetSubCategories';
 
+
 const userId = getUserId();
 
 // Type Definitions
@@ -26,6 +27,12 @@ interface Category {
   id: string;
   name: string;
 }
+
+interface Subcategory {
+  id: string;
+  name: string;
+}
+
 interface Template {
   id: string;
   name: string;
@@ -133,6 +140,7 @@ const DraftTemplates: React.FC = () => {
 
   // Fetch subcategories
 const { data: subcategories = [], isLoading: subcategoriesLoading, } = useGetSubCategories(categoryId);
+
 
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
     queryKey: ['templates', selectedSubcategory, userId, userCategoryId],

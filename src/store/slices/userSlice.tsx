@@ -8,10 +8,12 @@ interface UserDetails {
 }
 
 interface UserState {
+  userCategoryId: number | null; 
   userDetails: any | null;
 }
 
 const initialState: UserState = {
+  userCategoryId: null, 
   userDetails: null,
 };
 
@@ -19,11 +21,14 @@ const userSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
-    setUserDetails: (state, action: PayloadAction<UserDetails>) => {
+    setUserDetails: (state, action: PayloadAction<UserDetails & { userCategoryId?: number }>) => {
       state.userDetails = action.payload;
+      state.userCategoryId = action.payload.userCategoryId ?? null;
+
     },
     clearUserDetails: (state) => {
       state.userDetails = null;
+      state.userCategoryId = null;
     },
   },
 });
