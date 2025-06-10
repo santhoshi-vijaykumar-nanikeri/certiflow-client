@@ -24,8 +24,6 @@ const App = () => {
     }
   }, []);
 
-  // Sample commit
-
   return (
     <SnackbarProvider>
       <QueryClientProvider client={queryClient}>
