@@ -23,6 +23,9 @@ const App = () => {
       dispatch(setUserDetails(JSON.parse(userDetails)));
     }
   }, []);
+
+  // Sample commit
+
   return (
     <SnackbarProvider>
       <QueryClientProvider client={queryClient}>
