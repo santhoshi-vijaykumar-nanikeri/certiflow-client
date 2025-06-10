@@ -9,8 +9,8 @@ import { SnackbarProvider } from './components/SnackbarContext';
 import { useDispatch } from 'react-redux';
 import { setUserDetails } from './store/slices/userSlice';
 import Layout from './pages/private/AppBar/Layout';
-import { publicRoutes } from './routes/publicRoutes';
-import { privateRoutes } from './routes/privateRoutes';
+import { publicRoutes } from './routes/PublicRoutes';
+import { privateRoutes } from './routes/PrivateRoutes';
 
 const queryClient = new QueryClient();
 
